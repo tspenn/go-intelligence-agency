@@ -41,8 +41,19 @@ export interface SecretAgentMission {
   metadata: Record<string, unknown>;
   /** GIA: optional grouping label e.g. "Tech Sector Watch" */
   portfolio_name: string | null;
+  /** Send web push when condition fires (default true) */
+  notify_push: boolean;
+  /** Send Twilio SMS when condition fires (default false) */
+  notify_sms: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  tier: string;
+  phone: string | null;
+  sms_enabled: boolean;
 }
 
 export type NewMission = Omit<

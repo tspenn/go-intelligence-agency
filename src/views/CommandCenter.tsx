@@ -3,12 +3,13 @@ import {
   Shield, Eye, Lock, Radio, Target,
   ChevronRight, Zap, Globe, FileText,
   AlertTriangle, CheckCircle, Clock, ArrowRight,
-  Tag, Cloud, TrendingUp, LogOut, LogIn,
+  Tag, Cloud, TrendingUp, LogOut, LogIn, Settings,
   Bitcoin, Activity, Wind, Rss, Newspaper,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import AuthModal from '../components/AuthModal';
+import SettingsModal from '../components/SettingsModal';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent } from '../lib/appMode';
 
@@ -109,6 +110,7 @@ export default function CommandCenter({
   const [alerts, setAlerts] = useState<SecretAgentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const user = auth.user;
 
@@ -206,6 +208,15 @@ export default function CommandCenter({
               <p className="text-xs font-mono text-zinc-400">{utcTime} UTC</p>
               <p className="text-[12px] font-mono text-zinc-600">{utcDate}</p>
             </div>
+            {user && (
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                title="Settings"
+                className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
+              >
+                <Settings size={14} />
+              </button>
+            )}
             {user ? (
               <button
                 onClick={() => signOut()}
@@ -586,6 +597,12 @@ export default function CommandCenter({
             setShowAuthModal(false);
             loadData();
           }}
+        />
+      )}
+      {showSettingsModal && user && (
+        <SettingsModal
+          userId={user.id}
+          onClose={() => setShowSettingsModal(false)}
         />
       )}
     </div>

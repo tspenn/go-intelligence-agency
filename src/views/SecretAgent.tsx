@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
-  Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
+  Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen, MessageSquare,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type WatchType, type NewMission, parseCondition } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications } from '../lib/pushNotifications';
 import AuthModal from '../components/AuthModal';
+import SettingsModal from '../components/SettingsModal';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent, atMissionLimit } from '../lib/appMode';
 
@@ -147,9 +148,13 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [missions, setMissions] = useState<SecretAgentMission[]>([]);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushPermission, setPushPermission] = useState<string>('default');
+  const [notifyPush, setNotifyPush] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
+  const [userPhone, setUserPhone] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -185,13 +190,21 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   async function loadMissions() {
     if (!user) return;
-    const { data } = await supabase
-      .from('secret_agent_missions')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('active', true)
-      .order('created_at', { ascending: false });
-    if (data) setMissions(data as SecretAgentMission[]);
+    const [missionsRes, profileRes] = await Promise.all([
+      supabase
+        .from('secret_agent_missions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
+    if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
+    if (profileRes.data) setUserPhone(profileRes.data.phone ?? null);
   }
 
   async function activateMission() {
@@ -215,6 +228,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       check_interval_minutes: 60,
       metadata: {},
       portfolio_name: portfolioName.trim() || null,
+      notify_push: notifyPush,
+      notify_sms: notifySms,
     };
 
     const { data } = await supabase.from('secret_agent_missions').insert(newMission).select().maybeSingle();
@@ -245,24 +260,45 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   // ─── GIA-specific render ────────────────────────────────────────────────────
 
-  if (isGIA) return <GIAView
-    watchType={watchType} setWatchType={setWatchType}
-    target={target} setTarget={setTarget}
-    condition={condition} setCondition={setCondition}
-    portfolioName={portfolioName} setPortfolioName={setPortfolioName}
-    missions={missions}
-    activating={activating} activateMission={activateMission}
-    deactivateMission={deactivateMission}
-    limitReached={limitReached}
-    user={user}
-    pushEnabled={pushEnabled} pushPermission={pushPermission}
-    togglePush={togglePush}
-    onSwitchMode={onSwitchMode}
-    showAuthModal={showAuthModal} setShowAuthModal={setShowAuthModal}
-    loadMissions={loadMissions}
-    selectedOption={selectedOption}
-    MISSION_LIMIT={MISSION_LIMIT}
-  />;
+  if (isGIA) return (
+    <>
+      <GIAView
+        watchType={watchType} setWatchType={setWatchType}
+        target={target} setTarget={setTarget}
+        condition={condition} setCondition={setCondition}
+        portfolioName={portfolioName} setPortfolioName={setPortfolioName}
+        missions={missions}
+        activating={activating} activateMission={activateMission}
+        deactivateMission={deactivateMission}
+        limitReached={limitReached}
+        user={user}
+        pushEnabled={pushEnabled} pushPermission={pushPermission}
+        togglePush={togglePush}
+        notifyPush={notifyPush} setNotifyPush={setNotifyPush}
+        notifySms={notifySms} setNotifySms={setNotifySms}
+        userPhone={userPhone}
+        onSwitchMode={onSwitchMode}
+        showAuthModal={showAuthModal} setShowAuthModal={setShowAuthModal}
+        setShowSettingsModal={setShowSettingsModal}
+        loadMissions={loadMissions}
+        selectedOption={selectedOption}
+        MISSION_LIMIT={MISSION_LIMIT}
+      />
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => { setShowAuthModal(false); loadMissions(); }}
+        />
+      )}
+      {showSettingsModal && user && (
+        <SettingsModal
+          userId={user.id}
+          onClose={() => setShowSettingsModal(false)}
+          onSaved={(p) => setUserPhone(p.phone)}
+        />
+      )}
+    </>
+  );
 
   // ─── Secret Agent render (original) ────────────────────────────────────────
 
@@ -410,8 +446,12 @@ interface GIAViewProps {
   limitReached: boolean;
   user: { id: string; email?: string } | null;
   pushEnabled: boolean; pushPermission: string; togglePush: () => void;
+  notifyPush: boolean; setNotifyPush: (v: boolean) => void;
+  notifySms: boolean; setNotifySms: (v: boolean) => void;
+  userPhone: string | null;
   onSwitchMode: () => void;
   showAuthModal: boolean; setShowAuthModal: (v: boolean) => void;
+  setShowSettingsModal: (v: boolean) => void;
   loadMissions: () => void;
   selectedOption: WatchOption;
   MISSION_LIMIT: number;
@@ -421,7 +461,9 @@ function GIAView({
   watchType, setWatchType, target, setTarget, condition, setCondition,
   portfolioName, setPortfolioName, missions, activating, activateMission,
   deactivateMission, limitReached, user, pushEnabled, pushPermission, togglePush,
-  onSwitchMode, showAuthModal, setShowAuthModal, loadMissions, selectedOption, MISSION_LIMIT,
+  notifyPush, setNotifyPush, notifySms, setNotifySms, userPhone,
+  onSwitchMode, showAuthModal, setShowAuthModal, setShowSettingsModal,
+  loadMissions, selectedOption, MISSION_LIMIT,
 }: GIAViewProps) {
 
   // Group missions by portfolio for GIA view
@@ -452,6 +494,15 @@ function GIAView({
           <button onClick={onSwitchMode} className="text-[11px] font-mono uppercase tracking-widest text-emerald-500/60 hover:text-emerald-400 transition-colors border border-[#1a3325] hover:border-emerald-500/40 px-3 py-1.5 rounded-sm">
             Operations Hub
           </button>
+          {user && (
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              title="Settings"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400"
+            >
+              <Settings size={13} />
+            </button>
+          )}
           {user ? (
             <div className="flex items-center gap-2">
               <span className="hidden sm:block font-mono text-[11px] text-[#888] max-w-[140px] truncate">{user.email}</span>
@@ -550,6 +601,52 @@ function GIAView({
                   className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm pl-9 pr-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
                 />
               </div>
+            </div>
+
+            {/* Notification preferences */}
+            <div className="mb-6">
+              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-3">
+                If this happens, notify me via
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyPush(!notifyPush)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
+                    notifyPush
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
+                      : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
+                  }`}
+                >
+                  <Bell size={12} />
+                  Push
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifySms(!notifySms)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
+                    notifySms
+                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
+                      : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
+                  }`}
+                >
+                  <MessageSquare size={12} />
+                  SMS
+                </button>
+              </div>
+              {notifySms && !userPhone && (
+                <p className="font-mono text-[11px] text-amber-500/70 mt-2">
+                  Add your phone number in{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsModal(true)}
+                    className="underline hover:text-amber-400 transition-colors"
+                  >
+                    Settings
+                  </button>{' '}
+                  to receive texts.
+                </p>
+              )}
             </div>
 
             {/* Deploy button */}
@@ -654,8 +751,6 @@ function GIAView({
           ))}
         </div>
       </div>
-
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); loadMissions(); }} />}
     </div>
   );
 }
