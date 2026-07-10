@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
   Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen, MessageSquare,
+  Webhook, FolderKanban,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type WatchType, type NewMission, parseCondition } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type WatchType, type NewMission, parseCondition, GIA_TIER_LIMITS } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications } from '../lib/pushNotifications';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
+import PortfolioView from '../components/PortfolioView';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent, atMissionLimit } from '../lib/appMode';
 
@@ -150,11 +152,14 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [pushPermission, setPushPermission] = useState<string>('default');
   const [notifyPush, setNotifyPush] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [userPhone, setUserPhone] = useState<string | null>(null);
+  const [userTier, setUserTier] = useState<string>('operative');
   const [activating, setActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPortfolioView, setShowPortfolioView] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -199,12 +204,15 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         .order('created_at', { ascending: false }),
       supabase
         .from('profiles')
-        .select('phone')
+        .select('phone, tier')
         .eq('id', user.id)
         .maybeSingle(),
     ]);
     if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
-    if (profileRes.data) setUserPhone(profileRes.data.phone ?? null);
+    if (profileRes.data) {
+      setUserPhone(profileRes.data.phone ?? null);
+      setUserTier(profileRes.data.tier ?? 'operative');
+    }
   }
 
   async function activateMission() {
@@ -230,6 +238,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       portfolio_name: portfolioName.trim() || null,
       notify_push: notifyPush,
       notify_sms: notifySms,
+      webhook_url: webhookUrl.trim() || null,
     };
 
     const { data } = await supabase.from('secret_agent_missions').insert(newMission).select().maybeSingle();
@@ -272,14 +281,17 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         deactivateMission={deactivateMission}
         limitReached={limitReached}
         user={user}
+        userTier={userTier}
         pushEnabled={pushEnabled} pushPermission={pushPermission}
         togglePush={togglePush}
         notifyPush={notifyPush} setNotifyPush={setNotifyPush}
         notifySms={notifySms} setNotifySms={setNotifySms}
+        webhookUrl={webhookUrl} setWebhookUrl={setWebhookUrl}
         userPhone={userPhone}
         onSwitchMode={onSwitchMode}
         showAuthModal={showAuthModal} setShowAuthModal={setShowAuthModal}
         setShowSettingsModal={setShowSettingsModal}
+        setShowPortfolioView={setShowPortfolioView}
         loadMissions={loadMissions}
         selectedOption={selectedOption}
         MISSION_LIMIT={MISSION_LIMIT}
@@ -295,6 +307,13 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
           userId={user.id}
           onClose={() => setShowSettingsModal(false)}
           onSaved={(p) => setUserPhone(p.phone)}
+        />
+      )}
+      {showPortfolioView && (
+        <PortfolioView
+          missions={missions}
+          onClose={() => setShowPortfolioView(false)}
+          onMissionsChanged={loadMissions}
         />
       )}
     </>
@@ -445,13 +464,16 @@ interface GIAViewProps {
   deactivateMission: (id: string) => void;
   limitReached: boolean;
   user: { id: string; email?: string } | null;
+  userTier: string;
   pushEnabled: boolean; pushPermission: string; togglePush: () => void;
   notifyPush: boolean; setNotifyPush: (v: boolean) => void;
   notifySms: boolean; setNotifySms: (v: boolean) => void;
+  webhookUrl: string; setWebhookUrl: (v: string) => void;
   userPhone: string | null;
   onSwitchMode: () => void;
   showAuthModal: boolean; setShowAuthModal: (v: boolean) => void;
   setShowSettingsModal: (v: boolean) => void;
+  setShowPortfolioView: (v: boolean) => void;
   loadMissions: () => void;
   selectedOption: WatchOption;
   MISSION_LIMIT: number;
@@ -460,11 +482,22 @@ interface GIAViewProps {
 function GIAView({
   watchType, setWatchType, target, setTarget, condition, setCondition,
   portfolioName, setPortfolioName, missions, activating, activateMission,
-  deactivateMission, limitReached, user, pushEnabled, pushPermission, togglePush,
-  notifyPush, setNotifyPush, notifySms, setNotifySms, userPhone,
-  onSwitchMode, showAuthModal, setShowAuthModal, setShowSettingsModal,
+  deactivateMission, limitReached, user, userTier,
+  pushEnabled, pushPermission, togglePush,
+  notifyPush, setNotifyPush, notifySms, setNotifySms,
+  webhookUrl, setWebhookUrl, userPhone,
+  onSwitchMode, showAuthModal, setShowAuthModal,
+  setShowSettingsModal, setShowPortfolioView,
   loadMissions, selectedOption, MISSION_LIMIT,
 }: GIAViewProps) {
+
+  const tierLimits = GIA_TIER_LIMITS[userTier] ?? GIA_TIER_LIMITS.operative;
+  const activeMissions = missions.filter((m) => m.active);
+  const portfolioNames = [...new Set(activeMissions.map((m) => m.portfolio_name).filter(Boolean))];
+  const portfolioLimitReached = isFinite(tierLimits.portfolios) && portfolioNames.length >= tierLimits.portfolios;
+  const missionLimitReached = isFinite(tierLimits.missions) && activeMissions.length >= tierLimits.missions;
+  const newPortfolioIsNew = portfolioName.trim() && !portfolioNames.includes(portfolioName.trim());
+  const portfolioBlocksDeploy = newPortfolioIsNew && portfolioLimitReached;
 
   // Group missions by portfolio for GIA view
   const portfolioGroups = missions.reduce<Record<string, SecretAgentMission[]>>((acc, m) => {
@@ -494,6 +527,15 @@ function GIAView({
           <button onClick={onSwitchMode} className="text-[11px] font-mono uppercase tracking-widest text-emerald-500/60 hover:text-emerald-400 transition-colors border border-[#1a3325] hover:border-emerald-500/40 px-3 py-1.5 rounded-sm">
             Operations Hub
           </button>
+          {user && (
+            <button
+              onClick={() => setShowPortfolioView(true)}
+              title="Manage portfolios"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400"
+            >
+              <FolderKanban size={13} />
+            </button>
+          )}
           {user && (
             <button
               onClick={() => setShowSettingsModal(true)}
@@ -649,12 +691,51 @@ function GIAView({
               )}
             </div>
 
+            {/* Webhook URL (Agency tier only) */}
+            {userTier === 'agency' && (
+              <div className="mb-6">
+                <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-2">
+                  Webhook URL{' '}
+                  <span className="text-[#555] normal-case tracking-normal font-normal">— optional, Agency</span>
+                </label>
+                <div className="relative">
+                  <Webhook size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                  <input
+                    type="url"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    placeholder="https://hooks.zapier.com/..."
+                    className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm pl-9 pr-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
+                  />
+                </div>
+                <p className="font-mono text-[10px] text-[#555] mt-1.5">GIA will POST the alert payload to this URL when the condition fires.</p>
+              </div>
+            )}
+
+            {/* Tier limit warnings */}
+            {missionLimitReached && user && (
+              <div className="mb-4 bg-[#0a1a10] border border-emerald-500/20 rounded-sm px-4 py-3">
+                <p className="font-mono text-[12px] text-emerald-500/70">
+                  Operative limit reached ({tierLimits.missions}/{tierLimits.missions} for {userTier} tier).
+                  Upgrade to deploy more.
+                </p>
+              </div>
+            )}
+            {portfolioBlocksDeploy && (
+              <div className="mb-4 bg-amber-500/5 border border-amber-500/20 rounded-sm px-4 py-3">
+                <p className="font-mono text-[12px] text-amber-500/70">
+                  Portfolio limit reached ({tierLimits.portfolios} portfolios for {userTier} tier).
+                  Use an existing portfolio or upgrade to create more.
+                </p>
+              </div>
+            )}
+
             {/* Deploy button */}
             {!user ? (
               <button onClick={() => setShowAuthModal(true)} className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-mono text-[12px] tracking-[0.2em] uppercase py-4 rounded-sm transition-all flex items-center justify-center gap-2">
                 <LogIn size={14} />Sign In to Deploy
               </button>
-            ) : limitReached ? (
+            ) : missionLimitReached || portfolioBlocksDeploy ? (
               <div className="w-full bg-[#0a1a10] border border-emerald-500/20 rounded-sm px-4 py-3 text-center">
                 <p className="font-mono text-[12px] text-emerald-500/70">Operative limit reached — upgrade to deploy more.</p>
               </div>

@@ -3,12 +3,10 @@
  *
  * Authenticated users skip this page — they go straight into the app
  * (SecretAgent or CommandCenter) per appMode.defaultView.
- *
- * The Skyland Reach auth modals open as overlays on top of this page.
  */
 
 import { useState } from 'react';
-import { Check, Lock, Shield, ExternalLink } from 'lucide-react';
+import { Check, Lock, Shield, ExternalLink, Zap, Bell, BarChart2 } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
 import { MODE, isGIA, type TierConfig } from '../lib/appMode';
 
@@ -18,48 +16,57 @@ export default function Landing() {
   const [auth, setAuth] = useState<AuthRequest>({ open: false, mode: 'signin' });
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
 
-  const accent = MODE.brandAccent; // 'amber' | 'emerald'
+  const accent = MODE.brandAccent;
   const hasAnnual = MODE.tiers.some((t) => t.priceAnnual);
 
-  const accentText = accent === 'emerald' ? 'text-emerald-400' : 'text-amber-400';
-  const accentBg = accent === 'emerald' ? 'bg-emerald-500/10' : 'bg-amber-500/10';
-  const accentBorder = accent === 'emerald' ? 'border-emerald-500/30' : 'border-amber-500/30';
+  const accentText  = isGIA ? 'text-emerald-400' : 'text-amber-400';
+  const accentBg    = isGIA ? 'bg-emerald-500/10' : 'bg-amber-500/10';
+  const accentBorder = isGIA ? 'border-emerald-500/30' : 'border-amber-500/30';
+  const baseBg      = isGIA ? 'bg-[#080a0c]'  : 'bg-[#1a1a1a]';
+  const borderColor = isGIA ? 'border-[#1a2a20]' : 'border-[#2a2a2a]';
 
-  function openSignUp() {
-    setAuth({ open: true, mode: 'signup' });
-  }
-  function openSignIn() {
-    setAuth({ open: true, mode: 'signin' });
-  }
-  function closeAuth() {
-    setAuth({ open: false, mode: auth.mode });
-  }
+  function openSignUp() { setAuth({ open: true, mode: 'signup' }); }
+  function openSignIn() { setAuth({ open: true, mode: 'signin' }); }
+  function closeAuth()  { setAuth({ open: false, mode: auth.mode }); }
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-[#f5f0e8] font-['DM_Sans',sans-serif] flex flex-col">
+    <div className={`min-h-screen ${baseBg} text-[#f5f0e8] font-['DM_Sans',sans-serif] flex flex-col`}>
 
-      {/* ─── Top bar ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-[#2a2a2a] bg-[#1a1a1a]/95 backdrop-blur-sm">
+      {/* ─── Top bar ──────────────────────────────────────────────────────────── */}
+      <header className={`sticky top-0 z-30 border-b ${borderColor} ${baseBg}/95 backdrop-blur-sm`}>
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className={`pulse-dot ${accent === 'emerald' ? 'pulse-dot-emerald' : ''}`} />
+            <span className={`pulse-dot ${isGIA ? 'pulse-dot-emerald' : ''}`} />
             <span className="font-semibold text-sm tracking-[0.25em] uppercase text-[#f5f0e8]">
               {MODE.name}
             </span>
           </div>
-          <button
-            onClick={openSignIn}
-            className="font-mono text-[12px] uppercase tracking-widest text-[#a0a0a0] hover:text-white transition-colors px-3 py-1.5 rounded-sm border border-transparent hover:border-[#3a3a3a]"
-          >
-            Sign In
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={openSignIn}
+              className={`font-mono text-[12px] uppercase tracking-widest text-[#a0a0a0] hover:text-white transition-colors px-3 py-1.5 rounded-sm border border-transparent hover:${borderColor}`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={openSignUp}
+              className={isGIA
+                ? 'deploy-btn !py-2 !px-5 !text-[11px]'
+                : 'activate-btn !py-2 !px-5 !text-[11px]'}
+            >
+              Start Free Trial
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* ─── Hero ────────────────────────────────────────────────────────────── */}
-      <section className="border-b border-[#2a2a2a] relative overflow-hidden">
+      {/* ─── Hero ─────────────────────────────────────────────────────────────── */}
+      <section className={`border-b ${borderColor} relative overflow-hidden`}>
         {isGIA && (
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.06)_0%,_transparent_60%)]" />
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.07)_0%,_transparent_55%)]" />
+            <div className="absolute inset-0 cc-grid-bg opacity-20" />
+          </>
         )}
         <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28">
           <div className="max-w-3xl">
@@ -71,7 +78,11 @@ export default function Landing() {
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6">
-              <Headline text={MODE.landing.headline} highlight={MODE.landing.headlineHighlight} accent={accentText} />
+              <Headline
+                text={MODE.landing.headline}
+                highlight={MODE.landing.headlineHighlight}
+                accent={accentText}
+              />
             </h1>
 
             <p className="text-lg text-[#c0c0c0] leading-relaxed max-w-2xl mb-10">
@@ -79,7 +90,10 @@ export default function Landing() {
             </p>
 
             <div className="flex flex-col items-start gap-3">
-              <button onClick={openSignUp} className="activate-btn text-base px-8 py-3.5">
+              <button
+                onClick={openSignUp}
+                className={isGIA ? 'deploy-btn text-base !px-10 !py-4' : 'activate-btn text-base px-8 py-3.5'}
+              >
                 {MODE.landing.heroCta}
               </button>
               <p className="font-mono text-[12px] text-[#888] tracking-wide">
@@ -90,8 +104,81 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Pricing ─────────────────────────────────────────────────────────── */}
-      <section className="border-b border-[#2a2a2a]">
+      {/* ─── How It Works (GIA only) ──────────────────────────────────────────── */}
+      {isGIA && (
+        <section className={`border-b ${borderColor}`}>
+          <div className="max-w-6xl mx-auto px-6 py-20">
+            <div className="text-center mb-14">
+              <p className="font-mono text-[11px] tracking-[0.3em] uppercase text-emerald-400/70 mb-3">
+                — How It Works —
+              </p>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+                Intelligence on autopilot
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: Zap,
+                  step: '01',
+                  title: 'Deploy Operatives',
+                  body: 'Choose an intelligence type — equities, news, competitors, weather, crypto — set a threshold and give it a portfolio. Done in under a minute.',
+                },
+                {
+                  icon: BarChart2,
+                  step: '02',
+                  title: 'Monitor Every Signal',
+                  body: 'GIA checks your operatives hourly across every data source. No polling required on your end. It runs whether your laptop is open or not.',
+                },
+                {
+                  icon: Bell,
+                  step: '03',
+                  title: 'Get Briefed Instantly',
+                  body: 'When a condition fires you get a push notification, an SMS, and a weekly briefing every Sunday night summarizing everything that happened.',
+                },
+              ].map(({ icon: Icon, step, title, body }) => (
+                <div key={step} className="relative">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 flex-shrink-0 rounded border border-emerald-500/20 bg-emerald-500/5 flex items-center justify-center">
+                      <Icon size={16} className="text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] text-emerald-500/40 tracking-[0.3em] uppercase mb-1">{step}</p>
+                      <h3 className="font-semibold text-[#f5f0e8] mb-2">{title}</h3>
+                      <p className="text-[#888] text-sm leading-relaxed">{body}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Intel types strip */}
+            <div className={`mt-14 border ${borderColor} rounded-lg p-6 bg-[#0d1117]`}>
+              <p className="font-mono text-[10px] text-[#555] tracking-[0.3em] uppercase text-center mb-5">
+                10 Intelligence Types
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {[
+                  'Equity Prices', 'Crypto Markets', 'News Keywords', 'Competitor Sites',
+                  'RSS Feeds', 'Retail Prices', 'Bank Balances', 'Weather Alerts',
+                  'Seismic Activity', 'Air Quality',
+                ].map((t) => (
+                  <span
+                    key={t}
+                    className="font-mono text-[11px] text-[#666] border border-[#1a2a20] rounded-full px-3 py-1.5 hover:border-emerald-500/30 hover:text-[#aaa] transition-colors"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Pricing ──────────────────────────────────────────────────────────── */}
+      <section className={`border-b ${borderColor}`}>
         <div className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
             <p className={`font-mono text-[11px] tracking-[0.3em] uppercase ${accentText} mb-3`}>
@@ -104,34 +191,23 @@ export default function Landing() {
               {MODE.landing.pricingSubhead}
             </p>
 
-            {/* Monthly / Annual toggle */}
             {hasAnnual && (
-              <div className="inline-flex mt-8 bg-[#1f1f1f] border border-[#333] rounded-full p-1">
-                <button
-                  onClick={() => setBilling('monthly')}
-                  className={`px-5 py-1.5 rounded-full font-mono text-[12px] tracking-widest uppercase transition-colors ${
-                    billing === 'monthly'
-                      ? `${accentBg} ${accentText}`
-                      : 'text-[#888] hover:text-[#c0c0c0]'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setBilling('annual')}
-                  className={`px-5 py-1.5 rounded-full font-mono text-[12px] tracking-widest uppercase transition-colors ${
-                    billing === 'annual'
-                      ? `${accentBg} ${accentText}`
-                      : 'text-[#888] hover:text-[#c0c0c0]'
-                  }`}
-                >
-                  Annual
-                </button>
+              <div className={`inline-flex mt-8 ${isGIA ? 'bg-[#0d1117]' : 'bg-[#1f1f1f]'} border ${borderColor} rounded-full p-1`}>
+                {(['monthly', 'annual'] as const).map((b) => (
+                  <button
+                    key={b}
+                    onClick={() => setBilling(b)}
+                    className={`px-5 py-1.5 rounded-full font-mono text-[12px] tracking-widest uppercase transition-colors ${
+                      billing === b ? `${accentBg} ${accentText}` : 'text-[#888] hover:text-[#c0c0c0]'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Pricing grid */}
           <div className={`grid gap-5 ${MODE.tiers.length === 2 ? 'md:grid-cols-2 max-w-3xl mx-auto' : 'md:grid-cols-3'}`}>
             {MODE.tiers.map((tier) => (
               <PricingCard
@@ -146,16 +222,16 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Footer ──────────────────────────────────────────────────────────── */}
-      <footer className="mt-auto border-t border-[#2a2a2a] bg-[#141414]">
+      {/* ─── Footer ───────────────────────────────────────────────────────────── */}
+      <footer className={`mt-auto border-t ${borderColor} ${isGIA ? 'bg-[#050708]' : 'bg-[#141414]'}`}>
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <p className="font-mono text-[12px] text-[#888]">
             A <span className="text-[#c0c0c0]">Skyland Reach</span> product ·{' '}
             <a
-              href="mailto:support@skylandreach.com"
-              className="hover:text-amber-400 transition-colors"
+              href={isGIA ? 'mailto:support@go-i-agency.com' : 'mailto:support@skylandreach.com'}
+              className={`hover:${accentText} transition-colors`}
             >
-              support@skylandreach.com
+              {isGIA ? 'support@go-i-agency.com' : 'support@skylandreach.com'}
             </a>
           </p>
           <p className="font-mono text-[12px] text-[#888]">
@@ -164,7 +240,6 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* ─── Auth Modal Overlay ──────────────────────────────────────────────── */}
       {auth.open && (
         <AuthModal
           initialMode={auth.mode}
@@ -176,20 +251,10 @@ export default function Landing() {
   );
 }
 
-// ─── Headline component (highlights one phrase in brand color) ────────────────
+// ─── Headline component ────────────────────────────────────────────────────────
 
-function Headline({
-  text,
-  highlight,
-  accent,
-}: {
-  text: string;
-  highlight?: string;
-  accent: string;
-}) {
-  if (!highlight || !text.includes(highlight)) {
-    return <>{text}</>;
-  }
+function Headline({ text, highlight, accent }: { text: string; highlight?: string; accent: string }) {
+  if (!highlight || !text.includes(highlight)) return <>{text}</>;
   const parts = text.split(highlight);
   return (
     <>
@@ -200,7 +265,7 @@ function Headline({
   );
 }
 
-// ─── Pricing card ─────────────────────────────────────────────────────────────
+// ─── Pricing card ──────────────────────────────────────────────────────────────
 
 function PricingCard({
   tier,
@@ -213,20 +278,22 @@ function PricingCard({
   accent: 'amber' | 'emerald';
   onFreeCta: () => void;
 }) {
-  const accentText = accent === 'emerald' ? 'text-emerald-400' : 'text-amber-400';
-  const accentBg = accent === 'emerald' ? 'bg-emerald-500/10' : 'bg-amber-500/10';
+  const accentText   = accent === 'emerald' ? 'text-emerald-400' : 'text-amber-400';
+  const accentBg     = accent === 'emerald' ? 'bg-emerald-500/10' : 'bg-amber-500/10';
   const accentBorder = accent === 'emerald' ? 'border-emerald-500/40' : 'border-amber-500/40';
+  const cardBg       = accent === 'emerald' ? 'bg-[#0d1117]' : 'bg-[#1f1f1f]';
+  const cardBorder   = accent === 'emerald' ? 'border-[#1a2a20]' : 'border-[#333]';
 
-  const isAnnual = billing === 'annual' && !!tier.priceAnnual;
+  const isAnnual    = billing === 'annual' && !!tier.priceAnnual;
   const displayPrice = isAnnual ? tier.priceAnnual! : tier.price;
-  const stripeUrl = isAnnual && tier.stripeLinkAnnual ? tier.stripeLinkAnnual : tier.stripeLink;
+  const stripeUrl   = isAnnual && tier.stripeLinkAnnual ? tier.stripeLinkAnnual : tier.stripeLink;
+
+  const ctaClass = accent === 'emerald' ? 'deploy-btn w-full' : 'activate-btn w-full';
 
   return (
-    <div
-      className={`relative bg-[#1f1f1f] rounded-xl p-6 flex flex-col ${
-        tier.highlight ? `border-2 ${accentBorder} shadow-2xl` : 'border border-[#333]'
-      }`}
-    >
+    <div className={`relative ${cardBg} rounded-xl p-6 flex flex-col ${
+      tier.highlight ? `border-2 ${accentBorder} shadow-2xl` : `border ${cardBorder}`
+    }`}>
       {tier.highlight && (
         <div className={`absolute -top-3 left-1/2 -translate-x-1/2 ${accentBg} ${accentText} border ${accentBorder} rounded-full px-3 py-0.5 font-mono text-[10px] tracking-widest uppercase`}>
           Most Popular
@@ -261,7 +328,6 @@ function PricingCard({
       <p className="font-mono text-[12px] text-[#a0a0a0] mb-1">{tier.missionsLabel}</p>
       <p className="font-mono text-[12px] text-[#888] mb-4">{tier.interval}</p>
 
-      {/* Feature bullets */}
       {tier.featureBullets && tier.featureBullets.length > 0 && (
         <ul className="flex flex-col gap-2.5 mb-6 mt-2">
           {tier.featureBullets.map((feat) => (
@@ -273,11 +339,10 @@ function PricingCard({
         </ul>
       )}
 
-      {/* CTA */}
       <div className="mt-auto">
-        {tier.isFree || !stripeUrl ? (
-          <button onClick={onFreeCta} className="activate-btn w-full">
-            {tier.trial ? `Start ${tier.trial.toLowerCase()}` : 'Sign up free'}
+        {!stripeUrl || stripeUrl.includes('REPLACE_WITH') ? (
+          <button onClick={onFreeCta} className={ctaClass}>
+            {tier.trial ? `Start ${tier.trial.toLowerCase()} free` : 'Start free'}
           </button>
         ) : (
           <>
@@ -285,7 +350,7 @@ function PricingCard({
               href={stripeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="activate-btn w-full inline-flex items-center justify-center gap-2"
+              className={`${ctaClass} gap-2`}
             >
               Subscribe — {displayPrice}
               <ExternalLink size={13} />

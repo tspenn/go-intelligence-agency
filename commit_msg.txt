@@ -1,0 +1,29 @@
+feat: landing polish, tier limits, webhooks, portfolio manager, morning briefing
+
+Landing page (GIA):
+- Dark emerald theme (bg-[#080a0c]), deploy-btn CSS class for emerald CTAs
+- "How It Works" 3-step section + 10 intelligence types strip
+- Monthly/annual billing toggle, mode-aware footer email, pricing uses live tiers
+- All Stripe placeholder links fall back to free trial signup CTA
+
+Mission limit enforcement:
+- GIA_TIER_LIMITS constant: Operative 5/∞, Director 20/4, Agency ∞/∞
+- Loads profiles.tier alongside phone in loadMissions()
+- Blocks deploy when mission or portfolio count exceeds tier limit
+- Inline UI warnings shown before the deploy button
+
+Webhook output (Agency tier):
+- webhook_url column on secret_agent_missions (migration applied)
+- Webhook URL field shown in GIA deploy form for Agency users
+- mission-watcher POSTs full alert payload to webhook_url on condition fire
+
+Portfolio manager:
+- PortfolioView.tsx modal: lists all portfolios with operative count + last alert
+- Inline rename (click pencil → edit in place → Enter to save)
+- Ungroup (trash icon → confirmation → sets portfolio_name = null, non-destructive)
+- FolderKanban icon in GIA header opens the modal
+
+Daily morning briefing (Agency tier):
+- morning-briefing-gia edge function: alert table for past 24h, skip if quiet
+- Cron 0 13 * * * (9 am ET); job name gia-morning-briefing
+- Reuses RESEND_API_KEY and DIGEST_FROM_EMAIL_GIA secrets

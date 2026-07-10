@@ -45,6 +45,8 @@ export interface SecretAgentMission {
   notify_push: boolean;
   /** Send Twilio SMS when condition fires (default false) */
   notify_sms: boolean;
+  /** Agency: optional HTTP endpoint to POST alert payload to when condition fires */
+  webhook_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,13 @@ export interface UserProfile {
   phone: string | null;
   sms_enabled: boolean;
 }
+
+/** Mission + portfolio limits per GIA tier */
+export const GIA_TIER_LIMITS: Record<string, { missions: number; portfolios: number }> = {
+  operative: { missions: 5,        portfolios: Infinity },
+  director:  { missions: 20,       portfolios: 4        },
+  agency:    { missions: Infinity, portfolios: Infinity },
+};
 
 export type NewMission = Omit<
   SecretAgentMission,

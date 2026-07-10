@@ -679,6 +679,29 @@ Deno.serve(async (req: Request) => {
         await sendSmsToUser(mission.user_id, alertMessage);
       }
 
+      // Fire webhook (Agency: optional per-mission URL)
+      if (mission.webhook_url) {
+        try {
+          await fetch(mission.webhook_url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mission_id: mission.id,
+              codename: mission.codename,
+              watch_type: mission.watch_type,
+              target: mission.target,
+              alert_message: alertMessage,
+              last_value: lastValue,
+              condition_operator: mission.condition_operator,
+              condition_value: mission.condition_value,
+              triggered_at: now.toISOString(),
+            }),
+          });
+        } catch (webhookErr) {
+          console.error("Webhook delivery failed:", mission.webhook_url, (webhookErr as Error).message);
+        }
+      }
+
       // Write to app inbox (shared cross-app notification table)
       const { error: inboxErr } = await supabase.from("skyland_app_inbox").insert({
         user_id: mission.user_id,
