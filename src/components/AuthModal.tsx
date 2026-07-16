@@ -31,7 +31,6 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [existingAccount, setExistingAccount] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -57,13 +56,11 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
-    setExistingAccount(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setExistingAccount(false);
     setLoading(true);
 
     try {
@@ -73,8 +70,20 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
         onSuccess();
       } else {
         const { error: err, data } = await signUp(email, password);
-        if (err) throw err;
-        if (data.session) {
+        if (err) {
+          // Supabase sometimes returns an explicit error for existing emails
+          if (isExistingAccountError(err.message)) {
+            localStorage.removeItem('is_new');
+            setError('__existing__');
+          } else {
+            throw err;
+          }
+        } else if ((data?.user?.identities?.length ?? 1) === 0) {
+          // Supabase silent fake-success: email already registered,
+          // no confirmation email was sent — identities array is empty
+          localStorage.removeItem('is_new');
+          setError('__existing__');
+        } else if (data?.session) {
           onSuccess();
         } else {
           setConfirmedEmail(email);
@@ -82,12 +91,7 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
         }
       }
     } catch (err: unknown) {
-      const message = (err as Error).message ?? 'Authentication failed';
-      if (mode === 'signup' && isExistingAccountError(message)) {
-        setExistingAccount(true);
-      } else {
-        setError(message);
-      }
+      setError((err as Error).message ?? 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -216,25 +220,25 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
               </div>
             </div>
 
-            {/* Existing-account info box (sign-up only, when Supabase says email is taken) */}
-            {existingAccount && (
-              <div className="bg-teal-500/10 border border-teal-500/30 rounded-md px-3.5 py-3">
+            {/* Existing account — silent fake-success or explicit Supabase error */}
+            {error === '__existing__' && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-md px-3.5 py-3">
                 <div className="flex items-start gap-2.5">
-                  <Info size={14} className="text-teal-300 flex-shrink-0 mt-0.5" />
+                  <Info size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-teal-300 text-sm mb-1">
-                      You already have a Skyland Reach account.
+                    <p className="font-semibold text-amber-300 text-sm mb-1">
+                      That email already has an account.
                     </p>
-                    <p className="font-mono text-[11px] text-teal-200/80 leading-relaxed mb-2">
-                      Use your existing email and password — one account works
-                      across Secret Agent, FRIDAY Canvas, Go Shop, GoTRVL &amp; LnkLokr.
+                    <p className="font-mono text-[11px] text-amber-200/70 leading-relaxed mb-2">
+                      One Skyland Reach account works across GIA, Secret Agent,
+                      FRIDAY Canvas, Go Shop, GoTRVL &amp; LnkLokr.
                     </p>
                     <button
                       type="button"
                       onClick={() => switchMode('signin')}
-                      className="font-mono text-[11px] text-teal-300 hover:text-teal-200 underline underline-offset-2 transition-colors"
+                      className="font-mono text-[11px] text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors"
                     >
-                      Switch to sign in →
+                      Log in instead →
                     </button>
                   </div>
                 </div>
@@ -242,7 +246,7 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
             )}
 
             {/* Generic error */}
-            {error && !existingAccount && (
+            {error && error !== '__existing__' && (
               <p className="font-mono text-[12px] text-red-400 bg-red-500/10 border border-red-500/30 rounded-sm px-3 py-2">
                 {error}
               </p>
