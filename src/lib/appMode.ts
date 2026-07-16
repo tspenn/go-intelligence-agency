@@ -3,7 +3,7 @@
  *
  * The same codebase ships as two products:
  *   1. "secret_agent" → my-secret-agent.com (Entry tier app, sentence-form default)
- *   2. "gia"          → go-i-agency.com    (upgrade destination, Command Center default)
+ *   2. "gia"          → www.go-i-agency.com (upgrade destination, Command Center default)
  *
  * Set VITE_APP_MODE in the deployment environment to switch.
  *
@@ -181,7 +181,7 @@ const SECRET_AGENT_CONFIG: ModeConfig = {
 const GIA_CONFIG: ModeConfig = {
   name: 'Go Intelligence Agency',
   tagline: 'Intel. When you need it.',
-  domain: 'go-i-agency.com',
+  domain: 'www.go-i-agency.com',
   defaultView: 'command',
   missionLimit: Infinity,
   documentTitle: 'GIA — Your Operations Hub',
