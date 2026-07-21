@@ -43,8 +43,6 @@ export interface SecretAgentMission {
   portfolio_name: string | null;
   /** Send web push when condition fires (default true) */
   notify_push: boolean;
-  /** Send Twilio SMS when condition fires (default false) */
-  notify_sms: boolean;
   /** Agency: optional HTTP endpoint to POST alert payload to when condition fires */
   webhook_url: string | null;
   created_at: string;
@@ -54,8 +52,6 @@ export interface SecretAgentMission {
 export interface UserProfile {
   id: string;
   tier: string;
-  phone: string | null;
-  sms_enabled: boolean;
 }
 
 /** Mission + portfolio limits per GIA tier */

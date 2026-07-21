@@ -1,7 +1,9 @@
 import { supabase } from './supabase';
+import { APP_MODE } from './appMode';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 const SW_PATH = '/sw.js';
+const PUSH_APP_ID = APP_MODE === 'gia' ? 'gia' : 'secret-agent';
 
 /** Convert a VAPID public key (base64url) to a Uint8Array for the Push API */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -54,7 +56,7 @@ export async function enablePushNotifications(userId: string): Promise<boolean> 
     const { error } = await supabase.from('user_push_subscriptions').upsert(
       {
         user_id: userId,
-        app_id: 'secret-agent',
+        app_id: PUSH_APP_ID,
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,

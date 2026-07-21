@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
-  Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen, MessageSquare,
+  Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
   Webhook, FolderKanban,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type WatchType, type NewMission, parseCondition, GIA_TIER_LIMITS } from '../lib/supabase';
@@ -151,9 +151,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushPermission, setPushPermission] = useState<string>('default');
   const [notifyPush, setNotifyPush] = useState(true);
-  const [notifySms, setNotifySms] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [userPhone, setUserPhone] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string>('operative');
   const [activating, setActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -204,13 +202,12 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         .order('created_at', { ascending: false }),
       supabase
         .from('profiles')
-        .select('phone, tier')
+        .select('tier')
         .eq('id', user.id)
         .maybeSingle(),
     ]);
     if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
     if (profileRes.data) {
-      setUserPhone(profileRes.data.phone ?? null);
       setUserTier(profileRes.data.tier ?? 'operative');
     }
   }
@@ -237,7 +234,6 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       metadata: {},
       portfolio_name: portfolioName.trim() || null,
       notify_push: notifyPush,
-      notify_sms: notifySms,
       webhook_url: webhookUrl.trim() || null,
     };
 
@@ -285,9 +281,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         pushEnabled={pushEnabled} pushPermission={pushPermission}
         togglePush={togglePush}
         notifyPush={notifyPush} setNotifyPush={setNotifyPush}
-        notifySms={notifySms} setNotifySms={setNotifySms}
         webhookUrl={webhookUrl} setWebhookUrl={setWebhookUrl}
-        userPhone={userPhone}
         onSwitchMode={onSwitchMode}
         showAuthModal={showAuthModal} setShowAuthModal={setShowAuthModal}
         setShowSettingsModal={setShowSettingsModal}
@@ -306,7 +300,10 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         <SettingsModal
           userId={user.id}
           onClose={() => setShowSettingsModal(false)}
-          onSaved={(p) => setUserPhone(p.phone)}
+          onPushChange={(enabled) => {
+            setPushEnabled(enabled);
+            void getPushPermission().then(setPushPermission);
+          }}
         />
       )}
       {showPortfolioView && (
@@ -393,7 +390,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
             {pushPermission !== 'unsupported' && pushSupported() && (
               <button onClick={togglePush} className="flex items-center gap-2.5 text-xs font-mono text-[#b0b0b0] hover:text-[#999] transition-colors tracking-wide">
                 {pushEnabled ? <Bell size={13} className="text-amber-500/70" /> : <BellOff size={13} />}
-                <span className={pushEnabled ? 'text-amber-500/80' : ''}>{pushEnabled ? 'Push alerts ON' : pushPermission === 'denied' ? 'Push blocked — enable in browser settings' : 'Allow push notifications'}</span>
+                <span className={pushEnabled ? 'text-amber-500/80' : ''}>{pushEnabled ? 'Notifications ON' : pushPermission === 'denied' ? 'Notifications blocked — enable in browser/device settings' : 'Allow notifications on this device'}</span>
               </button>
             )}
             {!user && (
@@ -467,9 +464,7 @@ interface GIAViewProps {
   userTier: string;
   pushEnabled: boolean; pushPermission: string; togglePush: () => void;
   notifyPush: boolean; setNotifyPush: (v: boolean) => void;
-  notifySms: boolean; setNotifySms: (v: boolean) => void;
   webhookUrl: string; setWebhookUrl: (v: string) => void;
-  userPhone: string | null;
   onSwitchMode: () => void;
   showAuthModal: boolean; setShowAuthModal: (v: boolean) => void;
   setShowSettingsModal: (v: boolean) => void;
@@ -484,8 +479,8 @@ function GIAView({
   portfolioName, setPortfolioName, missions, activating, activateMission,
   deactivateMission, limitReached, user, userTier,
   pushEnabled, pushPermission, togglePush,
-  notifyPush, setNotifyPush, notifySms, setNotifySms,
-  webhookUrl, setWebhookUrl, userPhone,
+  notifyPush, setNotifyPush,
+  webhookUrl, setWebhookUrl,
   onSwitchMode, showAuthModal, setShowAuthModal,
   setShowSettingsModal, setShowPortfolioView,
   loadMissions, selectedOption, MISSION_LIMIT,
@@ -650,45 +645,28 @@ function GIAView({
               <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-3">
                 If this happens, notify me via
               </label>
-              <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setNotifyPush(!notifyPush)}
+                className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
+                  notifyPush
+                    ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
+                    : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
+                }`}
+              >
+                <Bell size={12} />
+                Notifications
+              </button>
+              <p className="font-mono text-[10px] text-[#555] mt-2 leading-relaxed">
+                Push alert to devices where you have notifications turned on.{' '}
                 <button
                   type="button"
-                  onClick={() => setNotifyPush(!notifyPush)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
-                    notifyPush
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                      : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
-                  }`}
+                  onClick={() => setShowSettingsModal(true)}
+                  className="underline hover:text-[#888] transition-colors"
                 >
-                  <Bell size={12} />
-                  Push
+                  Manage in Settings
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setNotifySms(!notifySms)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
-                    notifySms
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                      : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
-                  }`}
-                >
-                  <MessageSquare size={12} />
-                  SMS
-                </button>
-              </div>
-              {notifySms && !userPhone && (
-                <p className="font-mono text-[11px] text-amber-500/70 mt-2">
-                  Add your phone number in{' '}
-                  <button
-                    type="button"
-                    onClick={() => setShowSettingsModal(true)}
-                    className="underline hover:text-amber-400 transition-colors"
-                  >
-                    Settings
-                  </button>{' '}
-                  to receive texts.
-                </p>
-              )}
+              </p>
             </div>
 
             {/* Webhook URL (Agency tier only) */}
@@ -753,7 +731,7 @@ function GIAView({
             {pushPermission !== 'unsupported' && pushSupported() && (
               <button onClick={togglePush} className="mt-4 flex items-center gap-2.5 text-xs font-mono text-[#666] hover:text-[#999] transition-colors tracking-wide w-full">
                 {pushEnabled ? <Bell size={12} className="text-emerald-500/70" /> : <BellOff size={12} />}
-                <span className={pushEnabled ? 'text-emerald-500/70' : ''}>{pushEnabled ? 'Alerts active on this device' : 'Enable device alerts'}</span>
+                <span className={pushEnabled ? 'text-emerald-500/70' : ''}>{pushEnabled ? 'Notifications on' : pushPermission === 'denied' ? 'Notifications blocked' : 'Enable notifications'}</span>
               </button>
             )}
           </div>

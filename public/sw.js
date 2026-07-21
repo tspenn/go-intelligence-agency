@@ -1,5 +1,5 @@
 /**
- * Secret Agent / GIA — Push Notification Service Worker
+ * Go Intelligence Agency — Push Notification Service Worker
  *
  * Handles incoming web push events from the mission-watcher edge function
  * and displays them as OS-level notifications.
@@ -8,7 +8,7 @@
  *   navigator.serviceWorker.register('/sw.js')
  */
 
-const CACHE_NAME = 'secret-agent-v1';
+const CACHE_NAME = 'gia-v1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -25,15 +25,15 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: 'Secret Agent Alert', body: event.data ? event.data.text() : '' };
+    data = { title: 'GIA Alert', body: event.data ? event.data.text() : '' };
   }
 
-  const title = data.title || '🔔 Secret Agent Alert';
+  const title = data.title || 'GIA Alert';
   const options = {
-    body: data.body || 'Your agent has new intelligence.',
+    body: data.body || 'An operative has new intelligence.',
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/badge-72.png',
-    tag: data.tag || 'secret-agent-alert',
+    tag: data.tag || 'gia-alert',
     renotify: true,
     requireInteraction: true,
     silent: false,
@@ -43,7 +43,7 @@ self.addEventListener('push', (event) => {
       timestamp: Date.now(),
     },
     actions: [
-      { action: 'view', title: 'View Mission' },
+      { action: 'view', title: 'Open Hub' },
       { action: 'dismiss', title: 'Dismiss' },
     ],
   };

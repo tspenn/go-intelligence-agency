@@ -135,7 +135,7 @@ export default function Landing() {
                   icon: Bell,
                   step: '03',
                   title: 'Get Briefed Instantly',
-                  body: 'When a condition fires you get a push notification, an SMS, and a weekly briefing every Sunday night summarizing everything that happened.',
+                  body: 'When a condition fires you get a push notification on your device, plus a weekly briefing every Sunday night summarizing everything that happened. Notifications must be turned on on your device/devices.',
                 },
               ].map(({ icon: Icon, step, title, body }) => (
                 <div key={step} className="relative">

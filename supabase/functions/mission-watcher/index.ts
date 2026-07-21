@@ -7,7 +7,7 @@
  * For each active mission due for a check, this function:
  *   1. Fetches the current value from the data source
  *   2. Evaluates the user's condition
- *   3. Fires web push and/or SMS (per mission flags) + records an alert
+ *   3. Fires web push (per-mission notify_push) + records an alert
  *   4. Updates last_checked_at, last_value, and status_message on the mission row
  *
  * Environment variables required (set in Supabase Dashboard → Edge Functions → Secrets):
@@ -16,10 +16,6 @@
  *   WEB-PUSH_PUBLIC_KEY        VAPID public key
  *   WEB_PUSH_PRIVATE_KEY       VAPID private key
  *   WEB_PUSH_CONTACT-EMAIL     mailto: contact for VAPID
- *   TWILIO_ACCOUNT_SID         Twilio account SID
- *   TWILIO_API_KEY             Twilio API Key SID (used as Basic auth username)
- *   TWILIO_API_SECRET          Twilio API Key Secret (used as Basic auth password)
- *   TWILIO_FROM_NUMBER         Twilio sender number (E.164, e.g. +15005550006)
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -364,51 +360,6 @@ function evaluateCondition(
   }
 }
 
-// ─── SMS notification (Twilio — API Key auth) ─────────────────────────────────
-
-async function sendSmsToUser(userId: string, body: string) {
-  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-  const apiKey = Deno.env.get("TWILIO_API_KEY");
-  const apiSecret = Deno.env.get("TWILIO_API_SECRET");
-  const fromNumber = Deno.env.get("TWILIO_FROM_NUMBER");
-
-  if (!accountSid || !apiKey || !apiSecret || !fromNumber) {
-    console.warn("Twilio secrets not configured — skipping SMS");
-    return;
-  }
-
-  // Look up the user's saved phone number from their profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("phone, sms_enabled")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!profile?.phone || !profile.sms_enabled) return;
-
-  const message = `Go Intelligence Agency: ${body}`;
-  const credentials = btoa(`${apiKey}:${apiSecret}`);
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      From: fromNumber,
-      To: profile.phone,
-      Body: message,
-    }).toString(),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Twilio SMS error:", res.status, err);
-  }
-}
-
 // ─── Push notification ────────────────────────────────────────────────────────
 
 async function sendPushToUser(userId: string, title: string, body: string, url = "/") {
@@ -436,7 +387,7 @@ async function sendPushToUser(userId: string, title: string, body: string, url =
     url,
     icon: "/icon-192.png",
     badge: "/badge-72.png",
-    tag: "secret-agent-alert",
+    tag: "gia-alert",
   });
 
   await Promise.allSettled(
@@ -668,15 +619,10 @@ Deno.serve(async (req: Request) => {
       if (mission.notify_push !== false) {
         await sendPushToUser(
           mission.user_id,
-          `🔔 ${mission.codename}`,
+          `${mission.codename}`,
           alertMessage,
-          "/"
+          `/?mission=${mission.id}`
         );
-      }
-
-      // Fire SMS (gated on per-mission notify_sms flag, default false)
-      if (mission.notify_sms === true) {
-        await sendSmsToUser(mission.user_id, alertMessage);
       }
 
       // Fire webhook (Agency: optional per-mission URL)

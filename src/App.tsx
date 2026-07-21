@@ -8,11 +8,27 @@ import { MODE } from './lib/appMode';
 type Mode = 'agent' | 'command';
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>(MODE.defaultView);
+  const [mode, setMode] = useState<Mode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mission') || params.get('view') === 'command') return 'command';
+    if (params.get('view') === 'agent') return 'agent';
+    return MODE.defaultView;
+  });
   const auth = useAuth();
 
   useEffect(() => {
     document.title = MODE.documentTitle;
+  }, []);
+
+  // Deep-link from notification tap: open Operations Hub when ?mission= is present
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.data?.type === 'MISSION_ALERT') {
+        setMode('command');
+      }
+    }
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
   }, []);
 
   if (auth.loading) {
