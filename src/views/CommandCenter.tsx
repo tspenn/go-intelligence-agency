@@ -248,8 +248,9 @@ export default function CommandCenter({
               alt=""
               className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/95 via-zinc-950/85 to-zinc-950/45" />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-zinc-950/30" />
+            <div className="absolute inset-0 bg-zinc-950/15" />
+            <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-zinc-950/60 via-zinc-950/25 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-zinc-950 to-transparent" />
           </>
         ) : (
           <>
@@ -259,18 +260,18 @@ export default function CommandCenter({
         )}
         <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-start md:items-center gap-10 w-full">
           <div className="flex-1">
-            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6">
+            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6 drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {user ? `AGENT: ${user.email?.split('@')[0].toUpperCase()}` : 'SECURE CHANNEL ACTIVE'}
             </div>
-            <h1 className="font-['Space_Grotesk',sans-serif] text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight mb-4">
+            <h1 className="font-['Space_Grotesk',sans-serif] text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight mb-4 drop-shadow-[0_2px_12px_rgba(0,0,0,0.65)]">
               {isGIA ? (
                 <>Your <span className="text-emerald-400">Operations</span> Hub</>
               ) : (
                 <>Mission<br /><span className="text-emerald-400">Command</span> Center</>
               )}
             </h1>
-            <p className="text-zinc-400 text-lg leading-relaxed max-w-lg mb-8">
+            <p className="text-zinc-200 text-lg leading-relaxed max-w-lg mb-8 drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]">
               {user
                 ? `${activeMissions.length} active mission${activeMissions.length !== 1 ? 's' : ''} running${isGIA ? ' — unlimited capacity' : ''}. Your agents are watching silently in the background.`
                 : isGIA

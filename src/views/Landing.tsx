@@ -70,8 +70,10 @@ export default function Landing() {
               className="absolute inset-0 w-full h-full object-cover object-center"
               fetchPriority="high"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#080a0c]/95 via-[#080a0c]/80 to-[#080a0c]/35" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#080a0c]/90 via-transparent to-[#080a0c]/40" />
+            {/* Soft scrim only — keep the ops room visible */}
+            <div className="absolute inset-0 bg-[#080a0c]/20" />
+            <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-[#080a0c]/65 via-[#080a0c]/30 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#080a0c] to-transparent" />
           </>
         ) : (
           <>
@@ -82,7 +84,7 @@ export default function Landing() {
         <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28 w-full">
           <div className="max-w-3xl">
             {isGIA && (
-              <p className="font-semibold text-sm md:text-base tracking-[0.3em] uppercase text-emerald-400 mb-5">
+              <p className="font-semibold text-sm md:text-base tracking-[0.3em] uppercase text-emerald-400 mb-5 drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]">
                 {MODE.name}
               </p>
             )}
@@ -95,7 +97,7 @@ export default function Landing() {
               </div>
             )}
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
               <Headline
                 text={MODE.landing.headline}
                 highlight={MODE.landing.headlineHighlight}
@@ -103,7 +105,7 @@ export default function Landing() {
               />
             </h1>
 
-            <p className="text-lg text-[#c0c0c0] leading-relaxed max-w-2xl mb-10">
+            <p className="text-lg text-[#e8e4dc] leading-relaxed max-w-2xl mb-10 drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]">
               {MODE.landing.description}
             </p>
 
