@@ -70,10 +70,8 @@ export default function Landing() {
               className="absolute inset-0 w-full h-full object-cover object-center"
               fetchPriority="high"
             />
-            {/* Soft scrim only — keep the ops room visible */}
-            <div className="absolute inset-0 bg-[#080a0c]/20" />
-            <div className="absolute inset-y-0 left-0 w-full md:w-2/3 bg-gradient-to-r from-[#080a0c]/65 via-[#080a0c]/30 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#080a0c] to-transparent" />
+            {/* Tiny bottom blend into next section only — no full-image panel */}
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#080a0c] to-transparent" />
           </>
         ) : (
           <>
@@ -82,9 +80,15 @@ export default function Landing() {
           </>
         )}
         <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28 w-full">
-          <div className="max-w-3xl">
+          <div
+            className={
+              isGIA
+                ? 'max-w-3xl rounded-sm bg-black/30 px-5 py-6 md:px-8 md:py-8'
+                : 'max-w-3xl'
+            }
+          >
             {isGIA && (
-              <p className="font-semibold text-sm md:text-base tracking-[0.3em] uppercase text-emerald-400 mb-5 drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]">
+              <p className="font-semibold text-sm md:text-base tracking-[0.3em] uppercase text-emerald-400 mb-5">
                 {MODE.name}
               </p>
             )}
@@ -97,7 +101,7 @@ export default function Landing() {
               </div>
             )}
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6">
               <Headline
                 text={MODE.landing.headline}
                 highlight={MODE.landing.headlineHighlight}
@@ -105,7 +109,7 @@ export default function Landing() {
               />
             </h1>
 
-            <p className="text-lg text-[#e8e4dc] leading-relaxed max-w-2xl mb-10 drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]">
+            <p className={`text-lg leading-relaxed max-w-2xl mb-10 ${isGIA ? 'text-[#f0ebe3]' : 'text-[#c0c0c0]'}`}>
               {MODE.landing.description}
             </p>
 
@@ -116,7 +120,7 @@ export default function Landing() {
               >
                 {MODE.landing.heroCta}
               </button>
-              <p className="font-mono text-[12px] text-[#888] tracking-wide">
+              <p className={`font-mono text-[12px] tracking-wide ${isGIA ? 'text-[#c8c8c8]' : 'text-[#888]'}`}>
                 {MODE.landing.heroCtaNote}
               </p>
             </div>
