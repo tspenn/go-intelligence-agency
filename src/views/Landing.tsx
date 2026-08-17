@@ -61,21 +61,39 @@ export default function Landing() {
       </header>
 
       {/* ─── Hero ─────────────────────────────────────────────────────────────── */}
-      <section className={`border-b ${borderColor} relative overflow-hidden`}>
-        {isGIA && (
+      <section className={`border-b ${borderColor} relative overflow-hidden min-h-[70vh] md:min-h-[78vh] flex items-end md:items-center`}>
+        {isGIA ? (
+          <>
+            <img
+              src="/gia-header.jpg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover object-center"
+              fetchPriority="high"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#080a0c]/95 via-[#080a0c]/80 to-[#080a0c]/35" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#080a0c]/90 via-transparent to-[#080a0c]/40" />
+          </>
+        ) : (
           <>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.07)_0%,_transparent_55%)]" />
             <div className="absolute inset-0 cc-grid-bg opacity-20" />
           </>
         )}
-        <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28">
+        <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28 w-full">
           <div className="max-w-3xl">
-            <div className={`inline-flex items-center gap-2 ${accentBg} border ${accentBorder} rounded-full px-3 py-1 mb-6`}>
-              <Shield size={11} className={accentText} />
-              <span className={`font-mono text-[11px] tracking-widest uppercase ${accentText}`}>
-                {MODE.tagline}
-              </span>
-            </div>
+            {isGIA && (
+              <p className="font-semibold text-sm md:text-base tracking-[0.3em] uppercase text-emerald-400 mb-5">
+                {MODE.name}
+              </p>
+            )}
+            {!isGIA && (
+              <div className={`inline-flex items-center gap-2 ${accentBg} border ${accentBorder} rounded-full px-3 py-1 mb-6`}>
+                <Shield size={11} className={accentText} />
+                <span className={`font-mono text-[11px] tracking-widest uppercase ${accentText}`}>
+                  {MODE.tagline}
+                </span>
+              </div>
+            )}
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6">
               <Headline

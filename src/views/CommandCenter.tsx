@@ -240,10 +240,24 @@ export default function CommandCenter({
       <Ticker />
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-zinc-800">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.06)_0%,_transparent_60%)]" />
-        <div className="absolute inset-0 cc-grid-bg opacity-30" />
-        <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-start md:items-center gap-10">
+      <section className="relative overflow-hidden border-b border-zinc-800 min-h-[320px] md:min-h-[380px] flex items-center">
+        {isGIA ? (
+          <>
+            <img
+              src="/gia-header.jpg"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/95 via-zinc-950/85 to-zinc-950/45" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-zinc-950/30" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.06)_0%,_transparent_60%)]" />
+            <div className="absolute inset-0 cc-grid-bg opacity-30" />
+          </>
+        )}
+        <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-start md:items-center gap-10 w-full">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
