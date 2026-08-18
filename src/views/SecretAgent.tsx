@@ -38,7 +38,7 @@ const SA_WATCH_OPTIONS: WatchOption[] = [
   { boardId: 'news', value: 'news_keyword', label: 'News for a Keyword', sublabel: '', icon: Newspaper, placeholder: { target: 'tesla recall', condition: 'any new article appears' } },
 ];
 
-// GIA board — wider public-page scope; no banking / login walls
+// GIA board — public signals only; banking is My$ / MNY$, not GIA
 const GIA_WATCH_OPTIONS: WatchOption[] = [
   { boardId: 'equity', value: 'stock_price', label: 'Equity', sublabel: 'Stock threshold', icon: TrendingUp, placeholder: { target: 'AAPL, NVDA, TSLA', condition: 'drops below $150' } },
   { boardId: 'digital', value: 'crypto_price', label: 'Digital Asset', sublabel: 'Crypto price', icon: Bitcoin, placeholder: { target: 'bitcoin', condition: 'drops below $60,000' } },

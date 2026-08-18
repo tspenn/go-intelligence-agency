@@ -184,8 +184,8 @@ export default function Landing() {
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {[
-                  'Equity Prices', 'Crypto Markets', 'News Keywords', 'Competitor Sites',
-                  'RSS Feeds', 'Retail Prices', 'Bank Balances', 'Weather Alerts',
+                  'Equity Prices', 'Crypto Markets', 'News Keywords', 'Sports',
+                  'Public Pages', 'RSS Feeds', 'Retail Prices', 'Weather Alerts',
                   'Seismic Activity', 'Air Quality',
                 ].map((t) => (
                   <span

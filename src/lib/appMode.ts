@@ -101,7 +101,7 @@ const SECRET_AGENT_CONFIG: ModeConfig = {
     headline: 'A silent watchman for the things you can\'t watch yourself.',
     headlineHighlight: 'silent watchman',
     description:
-      'Set up missions in plain English — weather, sale prices, stock thresholds, bank balances. Your secret agent watches in the background and alerts you the moment something changes.',
+      'Set up missions in plain English — weather, sale prices, stock thresholds, news. Your secret agent watches in the background and alerts you the moment something changes.',
     heroCta: 'Start Free — No credit card',
     heroCtaNote: 'Free forever. Upgrade anytime. Cancel anytime.',
     pricingHeading: 'Clearance Levels',

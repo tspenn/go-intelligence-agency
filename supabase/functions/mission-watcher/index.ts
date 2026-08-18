@@ -342,8 +342,8 @@ async function fetchNewsKeyword(
   };
 }
 
-// Bank / Plaid watches are disabled here until My$ account linking ships.
-// Legacy bank_balance missions stay in the DB but do not scrape or ping.
+// Banking is My$ / MNY$ — not SA/GIA. Legacy bank_balance rows may remain
+// in the DB but are never checked or alerted here.
 
 // ─── Condition evaluation ─────────────────────────────────────────────────────
 
@@ -500,11 +500,10 @@ Deno.serve(async (req: Request) => {
         }
 
         case "bank_balance": {
-          // Hard-disabled: no board option; login/firewall accounts are out of scope.
-          // Re-enable via My$ / Plaid when that product path is ready.
+          // Hard-disabled permanently in SA/GIA. Banking lives in My$ / MNY$.
           conditionMet = false;
           statusMessage =
-            "Bank watches paused — login accounts aren't supported here. Deactivate this operative; banking will return through My$.";
+            "Bank watches aren't part of GIA — use My$ / MNY$ for accounts. Deactivate this operative.";
           break;
         }
 
