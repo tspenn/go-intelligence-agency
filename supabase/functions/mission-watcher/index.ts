@@ -1,8 +1,9 @@
 /**
  * Secret Agent / GIA — Mission Watcher Edge Function
  *
- * Scheduled hourly via pg_cron (see migration 20260522190001).
- * Can also be called directly by admins or during development.
+ * Scheduled hourly via pg_cron. JWT verification is off: cron must not send
+ * Authorization (invalid JWTs 401 at the gateway). Auth is the x-cron-job header
+ * (see migration 20260818000001_fix_mission_watcher_cron_auth.sql).
  *
  * For each active mission due for a check, this function:
  *   1. Fetches the current value from the data source
@@ -16,6 +17,7 @@
  *   WEB-PUSH_PUBLIC_KEY        VAPID public key
  *   WEB_PUSH_PRIVATE_KEY       VAPID private key
  *   WEB_PUSH_CONTACT-EMAIL     mailto: contact for VAPID
+ *   CURRENTS_API_KEY           optional — news / sports keyword watches
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -42,6 +44,33 @@ const WMO: Record<number, string> = {
 // WMO codes that constitute "severe" weather
 const SEVERE_WMO = new Set([45, 48, 65, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99]);
 
+// ─── Geocode (US zip or place name) ───────────────────────────────────────────
+
+async function geocodeTarget(target: string): Promise<{ lat: number; lon: number }> {
+  const zip = target.trim().match(/^(\d{5})(?:-\d{4})?$/);
+  if (zip) {
+    const zipRes = await fetch(`https://api.zippopotam.us/us/${zip[1]}`);
+    if (zipRes.ok) {
+      const zipData = await zipRes.json();
+      const place = zipData?.places?.[0];
+      if (place) {
+        return {
+          lat: parseFloat(place.latitude),
+          lon: parseFloat(place.longitude),
+        };
+      }
+    }
+  }
+
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(target)}&count=1&language=en&format=json`
+  );
+  const geoData = await geoRes.json();
+  const result = geoData.results?.[0];
+  if (!result) throw new Error(`Could not geocode location: "${target}"`);
+  return { lat: result.latitude, lon: result.longitude };
+}
+
 // ─── Data source fetchers ─────────────────────────────────────────────────────
 
 async function fetchWeather(target: string, metadata: Record<string, unknown>): Promise<{
@@ -55,14 +84,9 @@ async function fetchWeather(target: string, metadata: Record<string, unknown>): 
   let lon = metadata.lon as number | undefined;
 
   if (!lat || !lon) {
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(target)}&count=1&language=en&format=json`
-    );
-    const geoData = await geoRes.json();
-    const result = geoData.results?.[0];
-    if (!result) throw new Error(`Could not geocode location: "${target}"`);
-    lat = result.latitude;
-    lon = result.longitude;
+    const geo = await geocodeTarget(target);
+    lat = geo.lat;
+    lon = geo.lon;
   }
 
   const weatherRes = await fetch(
@@ -197,14 +221,9 @@ async function fetchAirQuality(target: string, metadata: Record<string, unknown>
   let lon = metadata.lon as number | undefined;
 
   if (!lat || !lon) {
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(target)}&count=1&format=json`
-    );
-    const geoData = await geoRes.json();
-    const result = geoData.results?.[0];
-    if (!result) throw new Error(`Could not geocode: "${target}"`);
-    lat = result.latitude;
-    lon = result.longitude;
+    const geo = await geocodeTarget(target);
+    lat = geo.lat;
+    lon = geo.lon;
   }
 
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=us_aqi&timezone=auto`;
@@ -284,7 +303,11 @@ async function fetchRssLatest(url: string): Promise<{
 // Builder plan: $69/mo for 75k/month if you outgrow free.
 // Docs: https://currentsapi.services/
 
-async function fetchNewsKeyword(keyword: string, since: string | null): Promise<{
+async function fetchNewsKeyword(
+  keyword: string,
+  since: string | null,
+  category?: string | null,
+): Promise<{
   count: number;
   latestTitle: string;
   latestUrl: string;
@@ -293,9 +316,9 @@ async function fetchNewsKeyword(keyword: string, since: string | null): Promise<
   const key = Deno.env.get("CURRENTS_API_KEY");
   if (!key) throw new Error("CURRENTS_API_KEY not configured (currentsapi.services)");
 
-  // Currents API uses "start_date" in ISO 8601 format
   const startParam = since ? `&start_date=${encodeURIComponent(since)}` : "";
-  const url = `https://api.currentsapi.services/v1/search?keywords=${encodeURIComponent(keyword)}&language=en&page_size=5${startParam}&apiKey=${key}`;
+  const categoryParam = category ? `&category=${encodeURIComponent(category)}` : "";
+  const url = `https://api.currentsapi.services/v1/search?keywords=${encodeURIComponent(keyword)}&language=en&page_size=5${startParam}${categoryParam}&apiKey=${key}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Currents API HTTP ${res.status}`);
@@ -411,11 +434,24 @@ async function sendPushToUser(userId: string, title: string, body: string, url =
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
+const CRON_JOB_HEADER = "secret-agent-mission-watcher";
+
+function isAuthorized(req: Request): boolean {
+  const cronHeader = (req.headers.get("x-cron-job") ?? "").trim();
+  if (cronHeader === CRON_JOB_HEADER) return true;
+
+  const cronSecret = (Deno.env.get("MISSION_WATCHER_CRON_SECRET") ?? "").trim();
+  if (cronSecret && cronHeader === cronSecret) return true;
+
+  const authHeader = (req.headers.get("Authorization") ?? "").trim();
+  const serviceKey = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
+  if (serviceKey && authHeader === `Bearer ${serviceKey}`) return true;
+
+  return !Deno.env.get("DENO_DEPLOYMENT_ID");
+}
+
 Deno.serve(async (req: Request) => {
-  // Allow service role key in Authorization header (cron calls) or anon for dev
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (authHeader !== `Bearer ${serviceKey}` && Deno.env.get("DENO_DEPLOYMENT_ID")) {
+  if (!isAuthorized(req)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -425,12 +461,12 @@ Deno.serve(async (req: Request) => {
   const now = new Date();
   const checkCutoff = new Date(now.getTime() - 55 * 60 * 1000); // 55 min ago
 
-  // Fetch all missions due for a check
-  const { data: missions, error: fetchError } = await supabase
+  // Fetch active missions, then keep those due for a check.
+  // Filter in-process: PostgREST `.or()` breaks on ISO timestamps (colons).
+  const { data: allActive, error: fetchError } = await supabase
     .from("secret_agent_missions")
     .select("*")
-    .eq("active", true)
-    .or(`last_checked_at.is.null,last_checked_at.lt.${checkCutoff.toISOString()}`);
+    .eq("active", true);
 
   if (fetchError) {
     return new Response(JSON.stringify({ error: fetchError.message }), {
@@ -438,6 +474,11 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const missions = (allActive ?? []).filter((m) => {
+    if (!m.last_checked_at) return true;
+    return new Date(m.last_checked_at).getTime() < checkCutoff.getTime();
+  });
 
   const results: { id: string; status: string; error?: string }[] = [];
 
@@ -583,13 +624,19 @@ Deno.serve(async (req: Request) => {
 
         case "news_keyword": {
           const previousLatest = (mission.metadata as { last_published?: string })?.last_published ?? null;
-          const { count, latestTitle, latestUrl, latestPublishedAt } = await fetchNewsKeyword(mission.target, previousLatest);
+          const category = (mission.metadata as { category?: string } | null)?.category ?? null;
+          const { count, latestTitle, latestUrl, latestPublishedAt } = await fetchNewsKeyword(
+            mission.target,
+            previousLatest,
+            category,
+          );
           lastValue = String(count);
           const isNew = !!previousLatest && !!latestPublishedAt && latestPublishedAt > previousLatest;
           if (latestPublishedAt) metadataUpdate.last_published = latestPublishedAt;
           metadataUpdate.last_title = latestTitle;
           metadataUpdate.last_url = latestUrl;
-          conditionMet = isNew || (!previousLatest && count > 0 && mission.condition_operator === "changes");
+          // First successful index is baseline only — never ping on startup
+          conditionMet = isNew;
           statusMessage = !previousLatest
             ? `Tracking "${mission.target}" — ${count} matching articles indexed`
             : isNew

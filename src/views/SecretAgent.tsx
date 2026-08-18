@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
   Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
-  Webhook, FolderKanban,
+  Webhook, FolderKanban, Trophy,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type WatchType, type NewMission, parseCondition, GIA_TIER_LIMITS } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type WatchType, parseCondition, GIA_TIER_LIMITS } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications } from '../lib/pushNotifications';
 import AuthModal from '../components/AuthModal';
@@ -16,38 +16,40 @@ import { MODE, isGIA, isSecretAgent, atMissionLimit } from '../lib/appMode';
 // ─── Watch type config ────────────────────────────────────────────────────────
 
 interface WatchOption {
+  boardId: string;
   value: WatchType;
   label: string;
   sublabel: string;
   placeholder: { target: string; condition: string };
   icon: typeof Eye;
+  /** Extra metadata stored on deploy (e.g. sports → news_keyword) */
+  metadata?: Record<string, unknown>;
 }
 
 const SA_WATCH_OPTIONS: WatchOption[] = [
-  { value: 'sale_price', label: 'A Sale Price', sublabel: '', icon: Tag, placeholder: { target: 'https://store.com/product', condition: 'price drops below $50' } },
-  { value: 'severe_weather', label: 'Severe Weather', sublabel: '', icon: Cloud, placeholder: { target: 'Miami, FL', condition: 'any severe weather warning' } },
-  { value: 'bank_balance', label: 'My Bank Balance', sublabel: '', icon: Shield, placeholder: { target: 'checking account', condition: 'balance drops below $500' } },
-  { value: 'stock_price', label: 'A Stock Price', sublabel: '', icon: TrendingUp, placeholder: { target: 'AAPL', condition: 'price drops below $150' } },
-  { value: 'crypto_price', label: 'A Crypto Price', sublabel: '', icon: Bitcoin, placeholder: { target: 'bitcoin', condition: 'drops below $60000' } },
-  { value: 'earthquake', label: 'Earthquake Activity', sublabel: '', icon: Activity, placeholder: { target: 'California', condition: 'magnitude above 4.5' } },
-  { value: 'air_quality', label: 'Air Quality', sublabel: '', icon: Wind, placeholder: { target: 'Los Angeles, CA', condition: 'AQI above 100' } },
-  { value: 'website_change', label: 'A Website Change', sublabel: '', icon: Globe, placeholder: { target: 'https://example.com/page', condition: 'any change appears' } },
-  { value: 'rss_feed', label: 'An RSS Feed', sublabel: '', icon: Rss, placeholder: { target: 'https://blog.com/feed.xml', condition: 'a new post is published' } },
-  { value: 'news_keyword', label: 'News for a Keyword', sublabel: '', icon: Newspaper, placeholder: { target: 'tesla recall', condition: 'any new article appears' } },
+  { boardId: 'sale_price', value: 'sale_price', label: 'A Sale Price', sublabel: '', icon: Tag, placeholder: { target: 'https://store.com/product', condition: 'price drops below $50' } },
+  { boardId: 'weather', value: 'severe_weather', label: 'Severe Weather', sublabel: '', icon: Cloud, placeholder: { target: 'Miami, FL', condition: 'any severe weather warning' } },
+  { boardId: 'stock_price', value: 'stock_price', label: 'A Stock Price', sublabel: '', icon: TrendingUp, placeholder: { target: 'AAPL', condition: 'price drops below $150' } },
+  { boardId: 'crypto_price', value: 'crypto_price', label: 'A Crypto Price', sublabel: '', icon: Bitcoin, placeholder: { target: 'bitcoin', condition: 'drops below $60000' } },
+  { boardId: 'earthquake', value: 'earthquake', label: 'Earthquake Activity', sublabel: '', icon: Activity, placeholder: { target: 'California', condition: 'magnitude above 4.5' } },
+  { boardId: 'air_quality', value: 'air_quality', label: 'Air Quality', sublabel: '', icon: Wind, placeholder: { target: 'Los Angeles, CA', condition: 'AQI above 100' } },
+  { boardId: 'website', value: 'website_change', label: 'A Website Change', sublabel: '', icon: Globe, placeholder: { target: 'https://example.com/page', condition: 'any change appears' } },
+  { boardId: 'rss_feed', value: 'rss_feed', label: 'An RSS Feed', sublabel: '', icon: Rss, placeholder: { target: 'https://blog.com/feed.xml', condition: 'a new post is published' } },
+  { boardId: 'news', value: 'news_keyword', label: 'News for a Keyword', sublabel: '', icon: Newspaper, placeholder: { target: 'tesla recall', condition: 'any new article appears' } },
 ];
 
-// GIA uses a card-grid selector with business-specific labels
+// GIA board — wider public-page scope; no banking / login walls
 const GIA_WATCH_OPTIONS: WatchOption[] = [
-  { value: 'stock_price', label: 'Equity', sublabel: 'Stock threshold', icon: TrendingUp, placeholder: { target: 'AAPL, NVDA, TSLA', condition: 'drops below $150' } },
-  { value: 'crypto_price', label: 'Digital Asset', sublabel: 'Crypto price', icon: Bitcoin, placeholder: { target: 'bitcoin', condition: 'drops below $60,000' } },
-  { value: 'news_keyword', label: 'Intelligence', sublabel: 'News & keywords', icon: Newspaper, placeholder: { target: 'Federal Reserve rate cut', condition: 'any new article' } },
-  { value: 'website_change', label: 'Competitive', sublabel: 'Competitor sites', icon: Globe, placeholder: { target: 'https://competitor.com/pricing', condition: 'any change appears' } },
-  { value: 'rss_feed', label: 'Industry Feed', sublabel: 'RSS / publications', icon: Rss, placeholder: { target: 'https://reuters.com/finance/feed', condition: 'any new item' } },
-  { value: 'sale_price', label: 'Market Price', sublabel: 'Price monitoring', icon: Tag, placeholder: { target: 'https://site.com/product', condition: 'drops below $500' } },
-  { value: 'bank_balance', label: 'Account', sublabel: 'Balance threshold', icon: Shield, placeholder: { target: 'business checking', condition: 'drops below $10,000' } },
-  { value: 'severe_weather', label: 'Weather', sublabel: 'Severe alerts', icon: Cloud, placeholder: { target: 'Chicago, IL', condition: 'any severe warning' } },
-  { value: 'earthquake', label: 'Seismic', sublabel: 'Earthquake alerts', icon: Activity, placeholder: { target: 'Pacific Northwest', condition: 'magnitude above 5.0' } },
-  { value: 'air_quality', label: 'Environment', sublabel: 'AQI monitoring', icon: Wind, placeholder: { target: 'Houston, TX', condition: 'AQI above 150' } },
+  { boardId: 'equity', value: 'stock_price', label: 'Equity', sublabel: 'Stock threshold', icon: TrendingUp, placeholder: { target: 'AAPL, NVDA, TSLA', condition: 'drops below $150' } },
+  { boardId: 'digital', value: 'crypto_price', label: 'Digital Asset', sublabel: 'Crypto price', icon: Bitcoin, placeholder: { target: 'bitcoin', condition: 'drops below $60,000' } },
+  { boardId: 'intel', value: 'news_keyword', label: 'Intelligence', sublabel: 'News & keywords', icon: Newspaper, placeholder: { target: 'Federal Reserve rate cut', condition: 'any new article' } },
+  { boardId: 'sports', value: 'news_keyword', label: 'Sports', sublabel: 'Games, odds, leagues', icon: Trophy, placeholder: { target: 'Lakers', condition: 'any new article' }, metadata: { category: 'sports' } },
+  { boardId: 'page', value: 'website_change', label: 'Public Page', sublabel: 'Any open URL — changes & warnings', icon: Globe, placeholder: { target: 'https://competitor.com/pricing', condition: 'any change or warning appears' } },
+  { boardId: 'feed', value: 'rss_feed', label: 'Industry Feed', sublabel: 'RSS / publications', icon: Rss, placeholder: { target: 'https://reuters.com/finance/feed', condition: 'any new item' } },
+  { boardId: 'market', value: 'sale_price', label: 'Market Price', sublabel: 'Public price pages', icon: Tag, placeholder: { target: 'https://site.com/product', condition: 'drops below $500' } },
+  { boardId: 'weather', value: 'severe_weather', label: 'Weather', sublabel: 'City or US zip', icon: Cloud, placeholder: { target: '28677', condition: 'any severe warning' } },
+  { boardId: 'seismic', value: 'earthquake', label: 'Seismic', sublabel: 'Earthquake alerts', icon: Activity, placeholder: { target: 'Pacific Northwest', condition: 'magnitude above 5.0' } },
+  { boardId: 'environment', value: 'air_quality', label: 'Environment', sublabel: 'AQI monitoring', icon: Wind, placeholder: { target: 'Houston, TX', condition: 'AQI above 150' } },
 ];
 
 const WATCH_ICONS: Record<WatchType, typeof Eye> = {
@@ -92,7 +94,8 @@ function SATicker() {
 }
 
 function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; onDeactivate: (id: string) => void }) {
-  const Icon = WATCH_ICONS[mission.watch_type as WatchType] ?? Eye;
+  const isSports = (mission.metadata as { category?: string } | null)?.category === 'sports';
+  const Icon = isSports ? Trophy : (WATCH_ICONS[mission.watch_type as WatchType] ?? Eye);
   const isAlert = mission.status_message.startsWith('⚠') || mission.status_message.startsWith('✓');
   const accentClass = isGIA ? 'text-emerald-400' : 'text-amber-400';
   const alertClass = isAlert ? (isGIA ? 'text-emerald-400/90' : 'text-amber-400/90') : 'text-green-400/80';
@@ -143,7 +146,7 @@ function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; o
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; onSwitchMode: () => void }) {
-  const [watchType, setWatchType] = useState<WatchType>(isGIA ? 'stock_price' : 'sale_price');
+  const [boardId, setBoardId] = useState(isGIA ? 'equity' : 'sale_price');
   const [target, setTarget] = useState('');
   const [condition, setCondition] = useState('');
   const [portfolioName, setPortfolioName] = useState('');
@@ -164,7 +167,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const user = auth.user;
   const MISSION_LIMIT = MODE.missionLimit;
   const watchOptions = isGIA ? GIA_WATCH_OPTIONS : SA_WATCH_OPTIONS;
-  const selectedOption = watchOptions.find((o) => o.value === watchType) ?? watchOptions[0];
+  const selectedOption = watchOptions.find((o) => o.boardId === boardId) ?? watchOptions[0];
+  const watchType = selectedOption.value;
 
   useEffect(() => { if (user) loadMissions(); else setMissions([]); }, [user]);
 
@@ -220,7 +224,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
     setActivating(true);
     const { operator, value } = parseCondition(condition);
 
-    const newMission: NewMission = {
+    const newMission = {
       user_id: user.id,
       codename: operativeCodename(),
       watch_type: watchType,
@@ -228,13 +232,17 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       condition_text: condition.trim(),
       condition_operator: operator,
       condition_value: value,
-      status_message: WATCH_STATUS[watchType],
+      status_message: selectedOption.metadata?.category === 'sports'
+        ? 'Scanning sports wires.'
+        : WATCH_STATUS[watchType],
       active: true,
       check_interval_minutes: 60,
-      metadata: {},
+      metadata: selectedOption.metadata ?? {},
       portfolio_name: portfolioName.trim() || null,
       notify_push: notifyPush,
       webhook_url: webhookUrl.trim() || null,
+      // Delay first real check ~1 hour — no ping on deploy/startup
+      last_checked_at: new Date().toISOString(),
     };
 
     const { data } = await supabase.from('secret_agent_missions').insert(newMission).select().maybeSingle();
@@ -268,7 +276,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   if (isGIA) return (
     <>
       <GIAView
-        watchType={watchType} setWatchType={setWatchType}
+        boardId={boardId} setBoardId={setBoardId}
         target={target} setTarget={setTarget}
         condition={condition} setCondition={setCondition}
         portfolioName={portfolioName} setPortfolioName={setPortfolioName}
@@ -360,8 +368,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
               {dropdownOpen && (
                 <div className="absolute left-0 top-full mt-2 bg-[#232323] border border-[#3a3a3a] rounded-sm shadow-2xl z-50 min-w-[200px]">
                   {SA_WATCH_OPTIONS.map((opt) => (
-                    <button key={opt.value} onClick={() => { setWatchType(opt.value); setDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${watchType === opt.value ? 'text-amber-400 bg-amber-500/10' : 'text-[#c8c0b0] hover:bg-[#2e2e2e] hover:text-[#f5f0e8]'}`}>
+                    <button key={opt.boardId} onClick={() => { setBoardId(opt.boardId); setDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${boardId === opt.boardId ? 'text-amber-400 bg-amber-500/10' : 'text-[#c8c0b0] hover:bg-[#2e2e2e] hover:text-[#f5f0e8]'}`}>
                       {opt.label}
                     </button>
                   ))}
@@ -452,7 +460,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 // ─── GIA Entry Form ───────────────────────────────────────────────────────────
 
 interface GIAViewProps {
-  watchType: WatchType; setWatchType: (v: WatchType) => void;
+  boardId: string; setBoardId: (v: string) => void;
   target: string; setTarget: (v: string) => void;
   condition: string; setCondition: (v: string) => void;
   portfolioName: string; setPortfolioName: (v: string) => void;
@@ -475,7 +483,7 @@ interface GIAViewProps {
 }
 
 function GIAView({
-  watchType, setWatchType, target, setTarget, condition, setCondition,
+  boardId, setBoardId, target, setTarget, condition, setCondition,
   portfolioName, setPortfolioName, missions, activating, activateMission,
   deactivateMission, limitReached, user, userTier,
   pushEnabled, pushPermission, togglePush,
@@ -574,12 +582,12 @@ function GIAView({
                 Intelligence Type
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {GIA_WATCH_OPTIONS.map(({ value, label, sublabel, icon: Icon }) => (
+                {GIA_WATCH_OPTIONS.map(({ boardId: id, label, sublabel, icon: Icon }) => (
                   <button
-                    key={value}
-                    onClick={() => setWatchType(value)}
+                    key={id}
+                    onClick={() => setBoardId(id)}
                     className={`flex items-start gap-2.5 p-3 rounded border text-left transition-all ${
-                      watchType === value
+                      boardId === id
                         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
                         : 'border-[#1e2e24] bg-[#111418] text-[#888] hover:border-[#2a4030] hover:text-[#c0c0c0]'
                     }`}
