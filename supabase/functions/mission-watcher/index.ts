@@ -342,29 +342,8 @@ async function fetchNewsKeyword(
   };
 }
 
-async function fetchBankBalance(
-  userId: string,
-  target: string
-): Promise<{ balance: number; accountName: string }> {
-  // Reads from the shared My$ / Plaid accounts table in the same Supabase project.
-  // The query strategy tries to match the target label to account type or name.
-  const isChecking = /check/i.test(target);
-  const isSavings = /sav/i.test(target);
-
-  let query = supabase
-    .from("plaid_accounts")
-    .select("name, current_balance, account_type")
-    .eq("user_id", userId)
-    .order("last_updated_at", { ascending: false })
-    .limit(1);
-
-  if (isChecking) query = query.eq("account_type", "checking");
-  else if (isSavings) query = query.eq("account_type", "savings");
-
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) throw new Error("No bank account data found in shared Plaid table");
-  return { balance: data.current_balance, accountName: data.name };
-}
+// Bank / Plaid watches are disabled here until My$ account linking ships.
+// Legacy bank_balance missions stay in the DB but do not scrape or ping.
 
 // ─── Condition evaluation ─────────────────────────────────────────────────────
 
@@ -521,13 +500,11 @@ Deno.serve(async (req: Request) => {
         }
 
         case "bank_balance": {
-          const { balance, accountName } = await fetchBankBalance(mission.user_id, mission.target);
-          lastValue = String(balance);
-          conditionMet = evaluateCondition(mission.condition_operator, mission.condition_value, balance);
-          statusMessage = conditionMet
-            ? `⚠ ${accountName} balance $${balance.toFixed(2)} meets alarm condition`
-            : `${accountName}: $${balance.toFixed(2)} — all clear`;
-          alertMessage = `Balance alert: ${accountName} is $${balance.toFixed(2)}`;
+          // Hard-disabled: no board option; login/firewall accounts are out of scope.
+          // Re-enable via My$ / Plaid when that product path is ready.
+          conditionMet = false;
+          statusMessage =
+            "Bank watches paused — login accounts aren't supported here. Deactivate this operative; banking will return through My$.";
           break;
         }
 
