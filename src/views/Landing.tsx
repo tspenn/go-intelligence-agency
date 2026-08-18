@@ -364,7 +364,7 @@ function PricingCard({
       )}
 
       <div className="mt-auto">
-        {!stripeUrl || stripeUrl.includes('REPLACE_WITH') ? (
+        {tier.isFree || !stripeUrl || stripeUrl.includes('REPLACE_WITH') ? (
           <button onClick={onFreeCta} className={ctaClass}>
             {tier.trial ? `Start ${tier.trial.toLowerCase()} free` : 'Start free'}
           </button>

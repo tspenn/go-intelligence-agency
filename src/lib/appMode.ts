@@ -208,6 +208,8 @@ const GIA_CONFIG: ModeConfig = {
       missionsLabel: '5 active operatives',
       interval: 'Hourly checks',
       current: true,
+      // Start with signup only — no Stripe until after the 30-day trial
+      isFree: true,
       featureBullets: [
         '5 active operatives (missions)',
         'Your Operations Hub dashboard',
@@ -216,6 +218,7 @@ const GIA_CONFIG: ModeConfig = {
         'Public-page & signal watches',
         '30-day free trial — no card',
       ],
+      // Kept for post-trial / renew flows — landing CTA must not open these during trial start
       stripeLink: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_MONTHLY_LINK',
       stripeLinkAnnual: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_ANNUAL_LINK',
     },
