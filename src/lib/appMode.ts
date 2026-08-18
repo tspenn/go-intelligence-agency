@@ -174,7 +174,7 @@ const SECRET_AGENT_CONFIG: ModeConfig = {
 // "The intelligence platform that doesn't require an IT department."
 //
 // Three tiers:
-//   Operative — 14-day free trial, 5 operatives (missions) to prove the value
+//   Operative — 30-day free trial, 5 operatives (missions) to prove the value
 //   Director  — $19.99/mo, 4 intelligence portfolios (≈20 missions), deep coverage
 //   Agency    — $49.99/mo, unlimited, morning briefings, full operation
 
@@ -191,7 +191,7 @@ const GIA_CONFIG: ModeConfig = {
     headlineHighlight: 'intelligence operation',
     description:
       'Deploy operatives on the markets, competitors, news signals, and data sources that move your business. Get briefed when something changes. No IT department. No enterprise contract. Just intelligence, on your terms.',
-    heroCta: 'Start your free trial — 14 days',
+    heroCta: 'Start your free trial — 30 days',
     heroCtaNote: 'No credit card. Full access. Cancel anytime.',
     pricingHeading: 'Operational Clearance',
     pricingSubhead: 'Built for people making decisions with information — not waiting for a quarterly report.',
@@ -203,7 +203,7 @@ const GIA_CONFIG: ModeConfig = {
       price: '$9.99/mo',
       priceAnnual: '$99.99/yr',
       annualSavingsNote: '2 months free',
-      trial: '14 days',
+      trial: '30 days',
       trialNote: 'Full access. No credit card. Prove the value first.',
       missionsLabel: '5 active operatives',
       interval: 'Hourly checks',
@@ -214,7 +214,7 @@ const GIA_CONFIG: ModeConfig = {
         'Hourly intelligence checks',
         'Push notifications (device alerts)',
         'Public-page & signal watches',
-        '14-day free trial — no card',
+        '30-day free trial — no card',
       ],
       stripeLink: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_MONTHLY_LINK',
       stripeLinkAnnual: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_ANNUAL_LINK',
