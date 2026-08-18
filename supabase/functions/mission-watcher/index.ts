@@ -342,8 +342,8 @@ async function fetchNewsKeyword(
   };
 }
 
-// Banking is My$ / MNY$ — not SA/GIA. Legacy bank_balance rows may remain
-// in the DB but are never checked or alerted here.
+// Finance/accounts are My$ / MNY$ — not SA/GIA. Legacy bank_balance rows may
+// remain in the DB but are never checked or alerted here.
 
 // ─── Condition evaluation ─────────────────────────────────────────────────────
 
@@ -503,7 +503,7 @@ Deno.serve(async (req: Request) => {
           // Hard-disabled permanently in SA/GIA. Banking lives in My$ / MNY$.
           conditionMet = false;
           statusMessage =
-            "Bank watches aren't part of GIA — use My$ / MNY$ for accounts. Deactivate this operative.";
+            "Finance watches aren't part of GIA — use My$ / MNY$ for accounts. Deactivate this operative.";
           break;
         }
 
