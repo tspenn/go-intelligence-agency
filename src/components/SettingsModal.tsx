@@ -5,6 +5,7 @@ import {
   getPushPermission,
   enablePushNotifications,
   disablePushNotifications,
+  restoreAndSyncPush,
   type PushPermissionState,
 } from '../lib/pushNotifications';
 
@@ -20,6 +21,7 @@ export default function SettingsModal({ userId, onClose, onPushChange }: Props) 
   const [toggling, setToggling] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [permission, setPermission] = useState<PushPermissionState>('default');
+  const [pushError, setPushError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadPushState();
@@ -29,10 +31,10 @@ export default function SettingsModal({ userId, onClose, onPushChange }: Props) 
     const perm = await getPushPermission();
     setPermission(perm);
 
-    if ('serviceWorker' in navigator && pushSupported()) {
-      const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-      const sub = reg ? await reg.pushManager.getSubscription() : null;
-      setPushEnabled(!!sub);
+    if (pushSupported()) {
+      const restored = await restoreAndSyncPush(userId);
+      setPushEnabled(restored.enabled);
+      setPushError(restored.error);
     } else {
       setPushEnabled(false);
     }
@@ -42,6 +44,7 @@ export default function SettingsModal({ userId, onClose, onPushChange }: Props) 
   async function toggleNotifications() {
     if (!pushSupported()) return;
     setToggling(true);
+    setPushError(null);
 
     if (pushEnabled) {
       await disablePushNotifications(userId);
@@ -49,11 +52,12 @@ export default function SettingsModal({ userId, onClose, onPushChange }: Props) 
       setPermission(await getPushPermission());
       onPushChange?.(false);
     } else {
-      const success = await enablePushNotifications(userId);
+      const result = await enablePushNotifications(userId);
       const perm = await getPushPermission();
       setPermission(perm);
-      setPushEnabled(success);
-      onPushChange?.(success);
+      setPushEnabled(result.ok);
+      setPushError(result.ok ? null : result.error);
+      onPushChange?.(result.ok);
     }
 
     setToggling(false);
@@ -138,6 +142,10 @@ export default function SettingsModal({ userId, onClose, onPushChange }: Props) 
                 Turn the toggle on and accept the browser permission prompt. Enable notifications
                 on every device where you want to receive alerts.
               </p>
+            )}
+
+            {pushError && (
+              <p className="font-mono text-[11px] text-red-400/90 leading-relaxed">{pushError}</p>
             )}
 
             {pushEnabled && (

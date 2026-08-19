@@ -33,7 +33,7 @@ self.addEventListener('push', (event) => {
     body: data.body || 'An operative has new intelligence.',
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/badge-72.png',
-    tag: data.tag || 'gia-alert',
+    tag: data.tag || `gia-alert-${Date.now()}`,
     renotify: true,
     requireInteraction: true,
     silent: false,

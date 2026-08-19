@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   Shield, Eye, Lock, Radio, Target,
-  ChevronRight, Zap, Globe, FileText,
+  ChevronRight, ChevronDown, Zap, Globe, FileText,
   AlertTriangle, CheckCircle, Clock, ArrowRight,
   Tag, Cloud, TrendingUp, LogOut, LogIn, Settings,
   Bitcoin, Activity, Wind, Rss, Newspaper, ExternalLink,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, getWatchOpenUrl, isHttpUrl } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, getWatchOpenUrl, getFindingOpenUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
@@ -77,9 +77,8 @@ function FeedItem({ alert, missions }: { alert: SecretAgentAlert; missions: Secr
   const isAlert = alert.alert_type === 'condition_met';
   const isError = alert.alert_type === 'check_error';
   const time = new Date(alert.triggered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const fromPayload = isHttpUrl(alert.payload?.open_url) ? alert.payload.open_url.trim() : null;
   const mission = missions.find((m) => m.id === alert.mission_id);
-  const openUrl = fromPayload ?? (mission ? getWatchOpenUrl(mission) : null);
+  const openUrl = getFindingOpenUrl(alert) ?? (mission ? getWatchOpenUrl(mission) : null);
 
   return (
     <div className="px-5 py-3 flex items-start gap-3 hover:bg-zinc-800/20 transition-colors">
@@ -125,6 +124,7 @@ export default function CommandCenter({
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
 
   const user = auth.user;
 
@@ -156,7 +156,7 @@ export default function CommandCenter({
         .select('*')
         .eq('user_id', user!.id)
         .order('triggered_at', { ascending: false })
-        .limit(20),
+        .limit(100),
     ]);
     if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
     if (alertsRes.data) setAlerts(alertsRes.data as SecretAgentAlert[]);
@@ -444,44 +444,87 @@ export default function CommandCenter({
                 const Icon = WATCH_ICONS[m.watch_type as WatchType] ?? Eye;
                 const hasAlert = m.status_message.startsWith('⚠') || m.status_message.startsWith('✓');
                 const openUrl = getWatchOpenUrl(m);
+                const missionFindings = alerts.filter(
+                  (a) => a.mission_id === m.id && a.alert_type === 'condition_met'
+                );
+                const expanded = expandedMissionId === m.id;
                 return (
-                  <div
-                    key={m.id}
-                    className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-800/30 transition-colors duration-150 group"
-                  >
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
-                    <Icon size={14} className="text-zinc-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <StatusBadge active={m.active} hasAlert={hasAlert} />
-                        <span className="font-mono text-[13px] text-zinc-600 uppercase">{m.watch_type.replace('_', ' ')}</span>
-                      </div>
-                      <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors truncate">
-                        {m.codename}
-                      </p>
-                      <p className="font-mono text-[12px] text-zinc-600 truncate mt-0.5">{m.status_message}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-[12px] font-mono text-zinc-500 truncate max-w-[120px]">{m.target}</p>
-                      {m.last_checked_at && (
-                        <p className="text-[13px] font-mono text-zinc-700 mt-0.5">
-                          {new Date(m.last_checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div key={m.id} className="divide-y divide-zinc-800/40">
+                    <div
+                      className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-800/30 transition-colors duration-150 group cursor-pointer"
+                      onClick={() => setExpandedMissionId(expanded ? null : m.id)}
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                      <Icon size={14} className="text-zinc-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <StatusBadge active={m.active} hasAlert={hasAlert} />
+                          <span className="font-mono text-[13px] text-zinc-600 uppercase">{m.watch_type.replace('_', ' ')}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors truncate">
+                          {m.codename}
                         </p>
+                        <p className="font-mono text-[12px] text-zinc-600 truncate mt-0.5">{m.status_message}</p>
+                        <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-emerald-500/70">
+                          Record · {missionFindings.length} finding{missionFindings.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[12px] font-mono text-zinc-500 truncate max-w-[120px]">{m.target}</p>
+                        {m.last_checked_at && (
+                          <p className="text-[13px] font-mono text-zinc-700 mt-0.5">
+                            {new Date(m.last_checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      {openUrl ? (
+                        <a
+                          href={openUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open source"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
+                        >
+                          Open
+                          <ExternalLink size={12} />
+                        </a>
+                      ) : (
+                        <ChevronDown size={14} className={`text-zinc-500 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                       )}
                     </div>
-                    {openUrl ? (
-                      <a
-                        href={openUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open source"
-                        className="flex-shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
-                      >
-                        Open
-                        <ExternalLink size={12} />
-                      </a>
-                    ) : (
-                      <ChevronRight size={14} className="text-zinc-700 flex-shrink-0" />
+                    {expanded && (
+                      <div className="px-6 pb-4 pt-1 bg-zinc-900/40">
+                        {missionFindings.length === 0 ? (
+                          <p className="font-mono text-[12px] text-zinc-600">No findings logged yet. Hits will collect here as the watch sweeps.</p>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            {missionFindings.map((finding) => {
+                              const findingUrl = getFindingOpenUrl(finding);
+                              return (
+                                <div key={finding.id}>
+                                  {findingUrl ? (
+                                    <a
+                                      href={findingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-mono text-[12px] text-emerald-400/90 underline underline-offset-2 inline-flex items-start gap-1"
+                                    >
+                                      <span>{finding.message}</span>
+                                      <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
+                                    </a>
+                                  ) : (
+                                    <p className="font-mono text-[12px] text-zinc-400">{finding.message}</p>
+                                  )}
+                                  <p className="font-mono text-[11px] text-zinc-600 mt-0.5">
+                                    {new Date(finding.triggered_at).toLocaleString()}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );

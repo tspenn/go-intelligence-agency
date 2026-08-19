@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
   Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
-  Webhook, FolderKanban, Trophy, ExternalLink,
+  Webhook, FolderKanban, Trophy, ExternalLink, ChevronDown,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type WatchType, parseCondition, GIA_TIER_LIMITS, getWatchOpenUrl } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, parseCondition, GIA_TIER_LIMITS, getWatchOpenUrl, getFindingOpenUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
-import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications } from '../lib/pushNotifications';
+import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications, restoreAndSyncPush } from '../lib/pushNotifications';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import PortfolioView from '../components/PortfolioView';
@@ -93,7 +93,16 @@ function SATicker() {
   );
 }
 
-function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; onDeactivate: (id: string) => void }) {
+function MissionCard({
+  mission,
+  findings,
+  onDeactivate,
+}: {
+  mission: SecretAgentMission;
+  findings: SecretAgentAlert[];
+  onDeactivate: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
   const isSports = (mission.metadata as { category?: string } | null)?.category === 'sports';
   const Icon = isSports ? Trophy : (WATCH_ICONS[mission.watch_type as WatchType] ?? Eye);
   const isAlert = mission.status_message.startsWith('⚠') || mission.status_message.startsWith('✓');
@@ -102,56 +111,99 @@ function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; o
   const openUrl = getWatchOpenUrl(mission);
 
   return (
-    <div className={`flex items-start gap-4 rounded-sm p-5 group border transition-all ${
+    <div className={`rounded-sm p-5 group border transition-all ${
       isGIA
         ? 'bg-[#0e1a14] border-[#1a3325] hover:border-emerald-500/30 hover:bg-[#111f17]'
         : 'mission-card bg-[#232323] border-[#333]'
     }`}>
-      <div className={`mt-0.5 w-8 h-8 flex items-center justify-center rounded-sm border flex-shrink-0 ${
-        isGIA ? 'bg-[#0a1510] border-[#1a3325]' : 'bg-[#1a1a1a] border-[#333]'
-      }`}>
-        <Icon size={15} className={isAlert ? `${accentClass} animate-pulse` : accentClass} />
+      <div className="flex items-start gap-4">
+        <div className={`mt-0.5 w-8 h-8 flex items-center justify-center rounded-sm border flex-shrink-0 ${
+          isGIA ? 'bg-[#0a1510] border-[#1a3325]' : 'bg-[#1a1a1a] border-[#333]'
+        }`}>
+          <Icon size={15} className={isAlert ? `${accentClass} animate-pulse` : accentClass} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-[#f5f0e8] font-semibold text-sm tracking-wide truncate">{mission.codename}</p>
+            {isGIA && mission.portfolio_name && (
+              <span className="flex-shrink-0 flex items-center gap-1 font-mono text-[10px] text-emerald-500/60 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">
+                <FolderOpen size={9} />
+                {mission.portfolio_name}
+              </span>
+            )}
+          </div>
+          <p className={`font-mono text-[13px] leading-relaxed truncate ${alertClass}`}>
+            {mission.status_message}
+          </p>
+          {openUrl && (
+            <a
+              href={openUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={`inline-flex items-center gap-1.5 mt-2 font-mono text-[11px] uppercase tracking-widest ${accentClass} hover:underline underline-offset-2`}
+            >
+              <ExternalLink size={11} />
+              Open source
+            </a>
+          )}
+          <p className="font-mono text-[12px] text-[#a0a0a0] mt-1 truncate">
+            {isGIA ? 'TARGET' : 'TARGET'}: {mission.target || '—'} · {isGIA ? 'THRESHOLD' : 'TRIGGER'}: {mission.condition_text || '—'}
+          </p>
+          {mission.last_checked_at && (
+            <p className="font-mono text-[11px] text-[#8a8a8a] mt-0.5">
+              Last check: {new Date(mission.last_checked_at).toLocaleString()}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className={`mt-3 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest ${isGIA ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-amber-500/80 hover:text-amber-400'}`}
+          >
+            <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+            Record · {findings.length} finding{findings.length === 1 ? '' : 's'}
+          </button>
+        </div>
+        <button
+          onClick={() => onDeactivate(mission.id)}
+          className="flex-shrink-0 text-[11px] font-mono uppercase tracking-widest text-red-700 hover:text-red-400 transition-colors duration-150 opacity-0 group-hover:opacity-100 pt-0.5"
+        >
+          {isGIA ? 'Terminate' : 'Deactivate'}
+        </button>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <p className="text-[#f5f0e8] font-semibold text-sm tracking-wide truncate">{mission.codename}</p>
-          {isGIA && mission.portfolio_name && (
-            <span className="flex-shrink-0 flex items-center gap-1 font-mono text-[10px] text-emerald-500/60 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">
-              <FolderOpen size={9} />
-              {mission.portfolio_name}
-            </span>
+
+      {open && (
+        <div className={`mt-4 ml-12 border-t pt-3 flex flex-col gap-2 ${isGIA ? 'border-[#1a3325]' : 'border-[#333]'}`}>
+          {findings.length === 0 ? (
+            <p className="font-mono text-[12px] text-[#777]">No findings logged yet. Hits will collect here as the watch sweeps.</p>
+          ) : (
+            findings.map((finding) => {
+              const url = getFindingOpenUrl(finding);
+              const when = new Date(finding.triggered_at).toLocaleString();
+              return (
+                <div key={finding.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`font-mono text-[12px] underline underline-offset-2 inline-flex items-start gap-1 ${isGIA ? 'text-emerald-400/90' : 'text-amber-400/90'}`}
+                      >
+                        <span>{finding.message}</span>
+                        <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
+                      </a>
+                    ) : (
+                      <p className="font-mono text-[12px] text-[#c8c0b0]">{finding.message}</p>
+                    )}
+                    <p className="font-mono text-[11px] text-[#777] mt-0.5">{when}</p>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
-        <p className={`font-mono text-[13px] leading-relaxed truncate ${alertClass}`}>
-          {mission.status_message}
-        </p>
-        {openUrl && (
-          <a
-            href={openUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className={`inline-flex items-center gap-1.5 mt-2 font-mono text-[11px] uppercase tracking-widest ${accentClass} hover:underline underline-offset-2`}
-          >
-            <ExternalLink size={11} />
-            Open source
-          </a>
-        )}
-        <p className="font-mono text-[12px] text-[#a0a0a0] mt-1 truncate">
-          {isGIA ? 'TARGET' : 'TARGET'}: {mission.target || '—'} · {isGIA ? 'THRESHOLD' : 'TRIGGER'}: {mission.condition_text || '—'}
-        </p>
-        {mission.last_checked_at && (
-          <p className="font-mono text-[11px] text-[#8a8a8a] mt-0.5">
-            Last check: {new Date(mission.last_checked_at).toLocaleString()}
-          </p>
-        )}
-      </div>
-      <button
-        onClick={() => onDeactivate(mission.id)}
-        className="flex-shrink-0 text-[11px] font-mono uppercase tracking-widest text-red-700 hover:text-red-400 transition-colors duration-150 opacity-0 group-hover:opacity-100 pt-0.5"
-      >
-        {isGIA ? 'Terminate' : 'Deactivate'}
-      </button>
+      )}
     </div>
   );
 }
@@ -164,8 +216,10 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [condition, setCondition] = useState('');
   const [portfolioName, setPortfolioName] = useState('');
   const [missions, setMissions] = useState<SecretAgentMission[]>([]);
+  const [findings, setFindings] = useState<SecretAgentAlert[]>([]);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushPermission, setPushPermission] = useState<string>('default');
+  const [pushError, setPushError] = useState<string | null>(null);
   const [notifyPush, setNotifyPush] = useState(true);
   const [webhookUrl, setWebhookUrl] = useState('');
   const [userTier, setUserTier] = useState<string>('operative');
@@ -183,18 +237,24 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const selectedOption = watchOptions.find((o) => o.boardId === boardId) ?? watchOptions[0];
   const watchType = selectedOption.value;
 
-  useEffect(() => { if (user) loadMissions(); else setMissions([]); }, [user]);
+  useEffect(() => {
+    if (user) {
+      void loadMissions();
+      void loadFindings();
+    } else {
+      setMissions([]);
+      setFindings([]);
+    }
+  }, [user]);
 
   useEffect(() => {
-    getPushPermission().then((p) => setPushPermission(p));
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration('/sw.js').then(async (reg) => {
-        if (!reg) return;
-        const sub = await reg.pushManager.getSubscription();
-        setPushEnabled(!!sub);
-      });
-    }
-  }, []);
+    void getPushPermission().then((p) => setPushPermission(p));
+    if (!user) return;
+    void restoreAndSyncPush(user.id).then((restored) => {
+      setPushEnabled(restored.enabled);
+      setPushError(restored.error);
+    });
+  }, [user]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -227,6 +287,18 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
     if (profileRes.data) {
       setUserTier(profileRes.data.tier ?? 'operative');
     }
+  }
+
+  async function loadFindings() {
+    if (!user) return;
+    const { data } = await supabase
+      .from('secret_agent_alerts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('alert_type', 'condition_met')
+      .order('triggered_at', { ascending: false })
+      .limit(100);
+    if (data) setFindings(data as SecretAgentAlert[]);
   }
 
   async function activateMission() {
@@ -273,14 +345,21 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   async function togglePush() {
     if (!user) { setShowAuthModal(true); return; }
+    setPushError(null);
     if (pushEnabled) {
       await disablePushNotifications(user.id);
       setPushEnabled(false);
       setPushPermission('default');
     } else {
-      const success = await enablePushNotifications(user.id);
-      if (success) { setPushEnabled(true); setPushPermission('granted'); }
-      else setPushPermission(await getPushPermission());
+      const result = await enablePushNotifications(user.id);
+      if (result.ok) {
+        setPushEnabled(true);
+        setPushPermission('granted');
+        setPushError(null);
+      } else {
+        setPushError(result.error);
+        setPushPermission(await getPushPermission());
+      }
     }
   }
 
@@ -294,13 +373,14 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         condition={condition} setCondition={setCondition}
         portfolioName={portfolioName} setPortfolioName={setPortfolioName}
         missions={missions}
+        findings={findings}
         activating={activating} activateMission={activateMission}
         deactivateMission={deactivateMission}
         limitReached={limitReached}
         user={user}
         userTier={userTier}
         pushEnabled={pushEnabled} pushPermission={pushPermission}
-        togglePush={togglePush}
+        togglePush={togglePush} pushError={pushError}
         notifyPush={notifyPush} setNotifyPush={setNotifyPush}
         webhookUrl={webhookUrl} setWebhookUrl={setWebhookUrl}
         onSwitchMode={onSwitchMode}
@@ -430,7 +510,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
               <span className="font-mono text-[12px] text-green-400/80">{missions.length} running{user && isFinite(MISSION_LIMIT) && ` · ${Math.max(0, MISSION_LIMIT - missions.length)} slots remaining`}</span>
             </div>
             <div className="flex flex-col gap-3">
-              {missions.map((m) => <MissionCard key={m.id} mission={m} onDeactivate={deactivateMission} />)}
+              {missions.map((m) => <MissionCard key={m.id} mission={m} findings={findings.filter((f) => f.mission_id === m.id)} onDeactivate={deactivateMission} />)}
             </div>
           </section>
         )}
@@ -478,12 +558,14 @@ interface GIAViewProps {
   condition: string; setCondition: (v: string) => void;
   portfolioName: string; setPortfolioName: (v: string) => void;
   missions: SecretAgentMission[];
+  findings: SecretAgentAlert[];
   activating: boolean; activateMission: () => void;
   deactivateMission: (id: string) => void;
   limitReached: boolean;
   user: { id: string; email?: string } | null;
   userTier: string;
   pushEnabled: boolean; pushPermission: string; togglePush: () => void;
+  pushError: string | null;
   notifyPush: boolean; setNotifyPush: (v: boolean) => void;
   webhookUrl: string; setWebhookUrl: (v: string) => void;
   onSwitchMode: () => void;
@@ -497,9 +579,9 @@ interface GIAViewProps {
 
 function GIAView({
   boardId, setBoardId, target, setTarget, condition, setCondition,
-  portfolioName, setPortfolioName, missions, activating, activateMission,
+  portfolioName, setPortfolioName, missions, findings, activating, activateMission,
   deactivateMission, limitReached, user, userTier,
-  pushEnabled, pushPermission, togglePush,
+  pushEnabled, pushPermission, togglePush, pushError,
   notifyPush, setNotifyPush,
   webhookUrl, setWebhookUrl,
   onSwitchMode, showAuthModal, setShowAuthModal,
@@ -755,6 +837,9 @@ function GIAView({
                 <span className={pushEnabled ? 'text-emerald-500/70' : ''}>{pushEnabled ? 'Notifications on' : pushPermission === 'denied' ? 'Notifications blocked' : 'Enable notifications'}</span>
               </button>
             )}
+            {pushError && (
+              <p className="mt-2 font-mono text-[11px] text-red-400/90 leading-relaxed">{pushError}</p>
+            )}
           </div>
 
           {/* ─── Active Operations ──────────────────────────── */}
@@ -783,7 +868,7 @@ function GIAView({
                       <span className="font-mono text-[10px] text-[#444]">{ops.length} operative{ops.length !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {ops.map((m) => <MissionCard key={m.id} mission={m} onDeactivate={deactivateMission} />)}
+                      {ops.map((m) => <MissionCard key={m.id} mission={m} findings={findings.filter((f) => f.mission_id === m.id)} onDeactivate={deactivateMission} />)}
                     </div>
                   </div>
                 ))}

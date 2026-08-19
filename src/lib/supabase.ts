@@ -116,6 +116,17 @@ export function getWatchOpenUrl(mission: {
   return null;
 }
 
+/** Source URL stored on a finding / alert payload. */
+export function getFindingOpenUrl(alert: {
+  payload: Record<string, unknown> | null;
+}): string | null {
+  const payload = alert.payload ?? {};
+  for (const key of ['open_url', 'url', 'last_url', 'last_link'] as const) {
+    if (isHttpUrl(payload[key])) return String(payload[key]).trim();
+  }
+  return null;
+}
+
 export function parseCondition(text: string): {
   operator: ConditionOperator;
   value: number | null;

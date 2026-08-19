@@ -387,50 +387,68 @@ function evaluateCondition(
 // ─── Push notification ────────────────────────────────────────────────────────
 
 async function sendPushToUser(userId: string, title: string, body: string, url = "/") {
-  const vapidPublicKey = Deno.env.get("WEB-PUSH_PUBLIC_KEY");
-  const vapidPrivateKey = Deno.env.get("WEB_PUSH_PRIVATE_KEY");
-  const vapidSubject = Deno.env.get("WEB_PUSH_CONTACT-EMAIL") ?? "mailto:admin@example.com";
+  const sharedPublic = Deno.env.get("WEB_PUSH_PUBLIC_KEY") ?? Deno.env.get("WEB-PUSH_PUBLIC_KEY") ?? "";
+  const sharedPrivate = Deno.env.get("WEB_PUSH_PRIVATE_KEY") ?? "";
+  const msaPublic = Deno.env.get("WEB_PUSH_PUBLIC_KEY_MY_SECRET_AGENT") ?? sharedPublic;
+  const msaPrivate = Deno.env.get("WEB_PUSH_PRIVATE_KEY_MY_SECRET_AGENT") ?? sharedPrivate;
+  const vapidSubject =
+    Deno.env.get("WEB_PUSH_CONTACT_EMAIL_MY_SECRET_AGENT") ??
+    Deno.env.get("WEB_PUSH_CONTACT-EMAIL") ??
+    "mailto:admin@example.com";
 
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.warn("VAPID keys not configured — skipping web push");
-    return;
-  }
-
-  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
-  const { data: subs, error } = await supabase
+  const { data: allSubs, error } = await supabase
     .from("user_push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
+    .select("id, endpoint, p256dh, auth, app_id")
     .eq("user_id", userId);
 
-  if (error || !subs?.length) return;
+  if (error || !allSubs?.length) return;
 
-  const payload = JSON.stringify({
-    title,
-    body,
-    url,
-    icon: "/icon-192.png",
-    badge: "/badge-72.png",
-    tag: "gia-alert",
+  type PushSub = { id: string; endpoint: string; p256dh: string; auth: string; app_id: string | null };
+  const subs = allSubs as PushSub[];
+  const saSubs = subs.filter((sub) => !sub.app_id || sub.app_id === "secret-agent" || sub.app_id === "friday");
+  const giaSubs = subs.filter((sub) => sub.app_id === "gia");
+
+  async function sendWith(
+    batch: PushSub[],
+    publicKey: string,
+    privateKey: string,
+    payload: string,
+  ) {
+    if (!batch.length || !publicKey || !privateKey) return;
+    webpush.setVapidDetails(vapidSubject, publicKey, privateKey);
+    await Promise.allSettled(
+      batch.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload,
+          );
+        } catch (err: unknown) {
+          const status = (err as { statusCode?: number }).statusCode;
+          if (status === 410 || status === 404) {
+            await supabase.from("user_push_subscriptions").delete().eq("id", sub.id);
+          }
+          console.error("Push send error:", status, sub.id, sub.app_id);
+        }
+      }),
+    );
+  }
+
+  const saPayload = JSON.stringify({
+    title, body, url, icon: "/icon-192.png", badge: "/badge-72.png", tag: `secret-agent-alert-${Date.now()}`,
+  });
+  const giaPayload = JSON.stringify({
+    title, body, url, icon: "/icon-192.png", badge: "/badge-72.png", tag: `gia-alert-${Date.now()}`,
   });
 
-  await Promise.allSettled(
-    subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload
-        );
-      } catch (err: unknown) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 410 || status === 404) {
-          // Subscription expired — clean it up
-          await supabase.from("user_push_subscriptions").delete().eq("id", sub.id);
-        }
-        console.error("Push send error:", status, sub.id);
-      }
-    })
-  );
+  if (saSubs.length && msaPublic && msaPrivate) {
+    await sendWith(saSubs, msaPublic, msaPrivate, saPayload);
+  }
+  if (giaSubs.length) {
+    const giaPublic = sharedPublic || msaPublic;
+    const giaPrivate = sharedPrivate || msaPrivate;
+    if (giaPublic && giaPrivate) await sendWith(giaSubs, giaPublic, giaPrivate, giaPayload);
+  }
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -659,55 +677,57 @@ Deno.serve(async (req: Request) => {
       mission.last_alert_sent_at &&
       new Date(mission.last_alert_sent_at) > alertCooldown;
 
-    if (conditionMet && !alreadyAlerted && !checkError) {
+    if (conditionMet && !checkError) {
       const openUrl = watchOpenUrl(mission.watch_type, mission.target, metadataUpdate);
       const pushUrl = openUrl || `/?mission=${mission.id}`;
 
-      // Fire push notification (gated on per-mission notify_push flag, default true)
-      if (mission.notify_push !== false) {
-        await sendPushToUser(
-          mission.user_id,
-          `${mission.codename}`,
-          alertMessage,
-          pushUrl
-        );
-      }
-
-      // Fire webhook (Agency: optional per-mission URL)
-      if (mission.webhook_url) {
-        try {
-          await fetch(mission.webhook_url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mission_id: mission.id,
-              codename: mission.codename,
-              watch_type: mission.watch_type,
-              target: mission.target,
-              alert_message: alertMessage,
-              last_value: lastValue,
-              open_url: openUrl,
-              condition_operator: mission.condition_operator,
-              condition_value: mission.condition_value,
-              triggered_at: now.toISOString(),
-            }),
-          });
-        } catch (webhookErr) {
-          console.error("Webhook delivery failed:", mission.webhook_url, (webhookErr as Error).message);
+      if (!alreadyAlerted) {
+        // Fire push notification (gated on per-mission notify_push flag, default true)
+        if (mission.notify_push !== false) {
+          await sendPushToUser(
+            mission.user_id,
+            `${mission.codename}`,
+            alertMessage,
+            pushUrl
+          );
         }
+
+        // Fire webhook (Agency: optional per-mission URL)
+        if (mission.webhook_url) {
+          try {
+            await fetch(mission.webhook_url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                mission_id: mission.id,
+                codename: mission.codename,
+                watch_type: mission.watch_type,
+                target: mission.target,
+                alert_message: alertMessage,
+                last_value: lastValue,
+                open_url: openUrl,
+                condition_operator: mission.condition_operator,
+                condition_value: mission.condition_value,
+                triggered_at: now.toISOString(),
+              }),
+            });
+          } catch (webhookErr) {
+            console.error("Webhook delivery failed:", mission.webhook_url, (webhookErr as Error).message);
+          }
+        }
+
+        // Write to app inbox (shared cross-app notification table)
+        const { error: inboxErr } = await supabase.from("skyland_app_inbox").insert({
+          user_id: mission.user_id,
+          app_id: "gia",
+          title: mission.codename,
+          body: alertMessage,
+          mission_id: mission.id,
+        });
+        if (inboxErr) console.warn("Inbox insert skipped:", inboxErr.message);
       }
 
-      // Write to app inbox (shared cross-app notification table)
-      const { error: inboxErr } = await supabase.from("skyland_app_inbox").insert({
-        user_id: mission.user_id,
-        app_id: "secret-agent",
-        title: mission.codename,
-        body: alertMessage,
-        mission_id: mission.id,
-      });
-      if (inboxErr) console.warn("Inbox insert skipped:", inboxErr.message);
-
-      // Log the alert
+      // Always log the finding so the record keeps every hit
       await supabase.from("secret_agent_alerts").insert({
         mission_id: mission.id,
         user_id: mission.user_id,
@@ -716,6 +736,7 @@ Deno.serve(async (req: Request) => {
         payload: {
           last_value: lastValue,
           open_url: openUrl,
+          url: openUrl,
           condition_operator: mission.condition_operator,
           condition_value: mission.condition_value,
         },
