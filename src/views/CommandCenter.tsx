@@ -499,8 +499,8 @@ export default function CommandCenter({
                           <p className="font-mono text-[12px] text-zinc-600">No findings logged yet. Hits will collect here as the watch sweeps.</p>
                         ) : (
                           <div className="flex flex-col gap-2">
-                            {missionFindings.map((finding) => {
-                              const findingUrl = getFindingOpenUrl(finding);
+                            {missionFindings.map((finding, index) => {
+                              const findingUrl = getFindingOpenUrl(finding, openUrl, index === 0);
                               return (
                                 <div key={finding.id}>
                                   {findingUrl ? (
@@ -508,6 +508,7 @@ export default function CommandCenter({
                                       href={findingUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
                                       className="font-mono text-[12px] text-emerald-400/90 underline underline-offset-2 inline-flex items-start gap-1"
                                     >
                                       <span>{finding.message}</span>

@@ -102,7 +102,6 @@ function MissionCard({
   findings: SecretAgentAlert[];
   onDeactivate: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const isSports = (mission.metadata as { category?: string } | null)?.category === 'sports';
   const Icon = isSports ? Trophy : (WATCH_ICONS[mission.watch_type as WatchType] ?? Eye);
   const isAlert = mission.status_message.startsWith('⚠') || mission.status_message.startsWith('✓');
@@ -155,14 +154,51 @@ function MissionCard({
               Last check: {new Date(mission.last_checked_at).toLocaleString()}
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className={`mt-3 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest ${isGIA ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-amber-500/80 hover:text-amber-400'}`}
-          >
-            <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-            Record · {findings.length} finding{findings.length === 1 ? '' : 's'}
-          </button>
+
+          <details className="mt-3 group/record">
+            <summary className={`cursor-pointer list-none flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest py-1 [&::-webkit-details-marker]:hidden ${isGIA ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-amber-500/80 hover:text-amber-400'}`}>
+              <ChevronDown size={12} className="transition-transform group-open/record:rotate-180" />
+              Record · {findings.length} finding{findings.length === 1 ? '' : 's'}
+            </summary>
+            <div className={`mt-3 border-t pt-3 flex flex-col gap-2 ${isGIA ? 'border-[#1a3325]' : 'border-[#333]'}`}>
+              {findings.length === 0 ? (
+                <p className="font-mono text-[12px] text-[#777]">No findings logged yet. Hits will collect here as the watch sweeps.</p>
+              ) : (
+                findings.map((finding, index) => {
+                  const url = getFindingOpenUrl(finding, openUrl, index === 0);
+                  const when = new Date(finding.triggered_at).toLocaleString();
+                  return (
+                    <div key={finding.id} className="min-w-0">
+                      {url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`font-mono text-[12px] underline underline-offset-2 inline-flex items-start gap-1 ${isGIA ? 'text-emerald-400/90' : 'text-amber-400/90'}`}
+                        >
+                          <span>{finding.message}</span>
+                          <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
+                        </a>
+                      ) : (
+                        <p className="font-mono text-[12px] text-[#c8c0b0]">{finding.message}</p>
+                      )}
+                      <p className="font-mono text-[11px] text-[#777] mt-0.5">{when}</p>
+                    </div>
+                  );
+                })
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  const details = (e.currentTarget as HTMLElement).closest('details');
+                  if (details) details.open = false;
+                }}
+                className={`mt-1 self-start font-mono text-[11px] uppercase tracking-widest ${isGIA ? 'text-[#888] hover:text-emerald-400' : 'text-[#888] hover:text-amber-400'}`}
+              >
+                Close record
+              </button>
+            </div>
+          </details>
         </div>
         <button
           onClick={() => onDeactivate(mission.id)}
@@ -171,39 +207,6 @@ function MissionCard({
           {isGIA ? 'Terminate' : 'Deactivate'}
         </button>
       </div>
-
-      {open && (
-        <div className={`mt-4 ml-12 border-t pt-3 flex flex-col gap-2 ${isGIA ? 'border-[#1a3325]' : 'border-[#333]'}`}>
-          {findings.length === 0 ? (
-            <p className="font-mono text-[12px] text-[#777]">No findings logged yet. Hits will collect here as the watch sweeps.</p>
-          ) : (
-            findings.map((finding) => {
-              const url = getFindingOpenUrl(finding);
-              const when = new Date(finding.triggered_at).toLocaleString();
-              return (
-                <div key={finding.id} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    {url ? (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`font-mono text-[12px] underline underline-offset-2 inline-flex items-start gap-1 ${isGIA ? 'text-emerald-400/90' : 'text-amber-400/90'}`}
-                      >
-                        <span>{finding.message}</span>
-                        <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
-                      </a>
-                    ) : (
-                      <p className="font-mono text-[12px] text-[#c8c0b0]">{finding.message}</p>
-                    )}
-                    <p className="font-mono text-[11px] text-[#777] mt-0.5">{when}</p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
     </div>
   );
 }

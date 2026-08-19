@@ -116,15 +116,26 @@ export function getWatchOpenUrl(mission: {
   return null;
 }
 
-/** Source URL stored on a finding / alert payload. */
-export function getFindingOpenUrl(alert: {
-  payload: Record<string, unknown> | null;
-}): string | null {
+/** Source URL stored on a finding / alert payload, with a news-search fallback. */
+export function getFindingOpenUrl(
+  alert: {
+    payload: Record<string, unknown> | null;
+    message?: string;
+  },
+  fallback?: string | null,
+  isLatest = false,
+): string | null {
   const payload = alert.payload ?? {};
   for (const key of ['open_url', 'url', 'last_url', 'last_link'] as const) {
     if (isHttpUrl(payload[key])) return String(payload[key]).trim();
   }
-  return null;
+  if (isLatest && fallback) return fallback;
+  const title =
+    (typeof payload.title === 'string' && payload.title.trim()) ||
+    alert.message?.match(/^News alert "[^"]+":\s*(.+)$/)?.[1]?.trim() ||
+    null;
+  if (title) return `https://news.google.com/search?q=${encodeURIComponent(title)}`;
+  return fallback ?? null;
 }
 
 export function parseCondition(text: string): {
