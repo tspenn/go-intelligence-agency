@@ -25,6 +25,14 @@ export default function App() {
     function onMessage(event: MessageEvent) {
       if (event.data?.type === 'MISSION_ALERT') {
         setMode('command');
+        const url = event.data.url;
+        if (
+          typeof url === 'string' &&
+          /^https?:\/\//i.test(url) &&
+          !url.startsWith(window.location.origin)
+        ) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
       }
     }
     navigator.serviceWorker?.addEventListener('message', onMessage);

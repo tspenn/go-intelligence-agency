@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
   Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
-  Webhook, FolderKanban, Trophy,
+  Webhook, FolderKanban, Trophy, ExternalLink,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type WatchType, parseCondition, GIA_TIER_LIMITS } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type WatchType, parseCondition, GIA_TIER_LIMITS, getWatchOpenUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import { pushSupported, getPushPermission, enablePushNotifications, disablePushNotifications } from '../lib/pushNotifications';
 import AuthModal from '../components/AuthModal';
@@ -99,6 +99,7 @@ function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; o
   const isAlert = mission.status_message.startsWith('⚠') || mission.status_message.startsWith('✓');
   const accentClass = isGIA ? 'text-emerald-400' : 'text-amber-400';
   const alertClass = isAlert ? (isGIA ? 'text-emerald-400/90' : 'text-amber-400/90') : 'text-green-400/80';
+  const openUrl = getWatchOpenUrl(mission);
 
   return (
     <div className={`flex items-start gap-4 rounded-sm p-5 group border transition-all ${
@@ -124,6 +125,18 @@ function MissionCard({ mission, onDeactivate }: { mission: SecretAgentMission; o
         <p className={`font-mono text-[13px] leading-relaxed truncate ${alertClass}`}>
           {mission.status_message}
         </p>
+        {openUrl && (
+          <a
+            href={openUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1.5 mt-2 font-mono text-[11px] uppercase tracking-widest ${accentClass} hover:underline underline-offset-2`}
+          >
+            <ExternalLink size={11} />
+            Open source
+          </a>
+        )}
         <p className="font-mono text-[12px] text-[#a0a0a0] mt-1 truncate">
           {isGIA ? 'TARGET' : 'TARGET'}: {mission.target || '—'} · {isGIA ? 'THRESHOLD' : 'TRIGGER'}: {mission.condition_text || '—'}
         </p>

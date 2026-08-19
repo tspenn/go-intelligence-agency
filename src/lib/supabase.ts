@@ -86,6 +86,36 @@ export interface SecretAgentAlert {
 //   "any severe weather"     → { operator: 'above', value: 44 }  (WMO code threshold)
 //   "balance drops below 500" → { operator: 'below', value: 500 }
 
+/** True when value is a navigable http(s) URL. */
+export function isHttpUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+}
+
+/**
+ * Source URL for a watched item — the article, RSS post, or public page.
+ * News/RSS use the last hit stored by mission-watcher; page/price watches use the target.
+ */
+export function getWatchOpenUrl(mission: {
+  watch_type: string;
+  target: string;
+  metadata: Record<string, unknown> | null;
+}): string | null {
+  const meta = mission.metadata ?? {};
+  if (mission.watch_type === 'news_keyword' && isHttpUrl(meta.last_url)) {
+    return meta.last_url.trim();
+  }
+  if (mission.watch_type === 'rss_feed' && isHttpUrl(meta.last_link)) {
+    return meta.last_link.trim();
+  }
+  if (
+    (mission.watch_type === 'website_change' || mission.watch_type === 'sale_price') &&
+    isHttpUrl(mission.target)
+  ) {
+    return mission.target.trim();
+  }
+  return null;
+}
+
 export function parseCondition(text: string): {
   operator: ConditionOperator;
   value: number | null;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { FolderOpen, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react';
-import { supabase, type SecretAgentMission } from '../lib/supabase';
+import { FolderOpen, Pencil, Trash2, Check, X, AlertTriangle, ExternalLink } from 'lucide-react';
+import { supabase, type SecretAgentMission, getWatchOpenUrl } from '../lib/supabase';
 
 interface Props {
   missions: SecretAgentMission[];
@@ -202,15 +202,29 @@ export default function PortfolioView({ missions, onClose, onMissionsChanged }: 
               {/* Operatives in this portfolio */}
               {g.missions.length > 0 && renaming !== g.name && confirming !== g.name && (
                 <div className="mt-3 ml-5 flex flex-col gap-1.5">
-                  {g.missions.map((m) => (
+                  {g.missions.map((m) => {
+                    const openUrl = getWatchOpenUrl(m);
+                    return (
                     <div key={m.id} className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                         m.status_message.startsWith('⚠') ? 'bg-amber-500' : 'bg-emerald-500/50'
                       }`} />
                       <span className="font-mono text-[11px] text-[#666] truncate">{m.codename}</span>
                       <span className="font-mono text-[10px] text-[#444] uppercase">{m.watch_type.replace('_', ' ')}</span>
+                      {openUrl && (
+                        <a
+                          href={openUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open source"
+                          className="ml-auto flex-shrink-0 text-emerald-400 hover:text-emerald-300"
+                        >
+                          <ExternalLink size={11} />
+                        </a>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

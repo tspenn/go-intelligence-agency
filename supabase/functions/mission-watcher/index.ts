@@ -345,6 +345,28 @@ async function fetchNewsKeyword(
 // Finance/accounts are My$ / MNY$ — not SA/GIA. Legacy bank_balance rows may
 // remain in the DB but are never checked or alerted here.
 
+function watchOpenUrl(
+  watchType: string,
+  target: string,
+  metadata: Record<string, unknown>,
+): string | null {
+  const lastUrl = metadata.last_url;
+  const lastLink = metadata.last_link;
+  if (watchType === "news_keyword" && typeof lastUrl === "string" && /^https?:\/\//i.test(lastUrl)) {
+    return lastUrl.trim();
+  }
+  if (watchType === "rss_feed" && typeof lastLink === "string" && /^https?:\/\//i.test(lastLink)) {
+    return lastLink.trim();
+  }
+  if (
+    (watchType === "website_change" || watchType === "sale_price") &&
+    /^https?:\/\//i.test(target)
+  ) {
+    return target.trim();
+  }
+  return null;
+}
+
 // ─── Condition evaluation ─────────────────────────────────────────────────────
 
 function evaluateCondition(
@@ -638,13 +660,16 @@ Deno.serve(async (req: Request) => {
       new Date(mission.last_alert_sent_at) > alertCooldown;
 
     if (conditionMet && !alreadyAlerted && !checkError) {
+      const openUrl = watchOpenUrl(mission.watch_type, mission.target, metadataUpdate);
+      const pushUrl = openUrl || `/?mission=${mission.id}`;
+
       // Fire push notification (gated on per-mission notify_push flag, default true)
       if (mission.notify_push !== false) {
         await sendPushToUser(
           mission.user_id,
           `${mission.codename}`,
           alertMessage,
-          `/?mission=${mission.id}`
+          pushUrl
         );
       }
 
@@ -661,6 +686,7 @@ Deno.serve(async (req: Request) => {
               target: mission.target,
               alert_message: alertMessage,
               last_value: lastValue,
+              open_url: openUrl,
               condition_operator: mission.condition_operator,
               condition_value: mission.condition_value,
               triggered_at: now.toISOString(),
@@ -687,7 +713,12 @@ Deno.serve(async (req: Request) => {
         user_id: mission.user_id,
         alert_type: "condition_met",
         message: alertMessage,
-        payload: { last_value: lastValue, condition_operator: mission.condition_operator, condition_value: mission.condition_value },
+        payload: {
+          last_value: lastValue,
+          open_url: openUrl,
+          condition_operator: mission.condition_operator,
+          condition_value: mission.condition_value,
+        },
       });
     } else if (!checkError) {
       // Log a check_ok event (throttled — only if last alert log was >6h ago)

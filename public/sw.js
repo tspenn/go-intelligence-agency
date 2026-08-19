@@ -8,7 +8,7 @@
  *   navigator.serviceWorker.register('/sw.js')
  */
 
-const CACHE_NAME = 'gia-v1';
+const CACHE_NAME = 'gia-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -43,7 +43,7 @@ self.addEventListener('push', (event) => {
       timestamp: Date.now(),
     },
     actions: [
-      { action: 'view', title: 'Open Hub' },
+      { action: 'view', title: 'Open' },
       { action: 'dismiss', title: 'Dismiss' },
     ],
   };
@@ -61,10 +61,18 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'dismiss') return;
 
   const url = event.notification.data?.url || '/';
+  const isAbsolute = /^https?:\/\//i.test(url);
+  const isSameOrigin = isAbsolute && url.startsWith(self.location.origin);
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if open
+    (async () => {
+      // Article / source URL: open the watched item itself, not the hub.
+      if (isAbsolute && !isSameOrigin) {
+        if (self.clients.openWindow) return self.clients.openWindow(url);
+        return;
+      }
+
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.focus();
@@ -72,11 +80,10 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      // Otherwise open a new window
       if (self.clients.openWindow) {
         return self.clients.openWindow(url);
       }
-    })
+    })()
   );
 });
 

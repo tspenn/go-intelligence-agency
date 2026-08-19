@@ -4,9 +4,9 @@ import {
   ChevronRight, Zap, Globe, FileText,
   AlertTriangle, CheckCircle, Clock, ArrowRight,
   Tag, Cloud, TrendingUp, LogOut, LogIn, Settings,
-  Bitcoin, Activity, Wind, Rss, Newspaper,
+  Bitcoin, Activity, Wind, Rss, Newspaper, ExternalLink,
 } from 'lucide-react';
-import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType } from '../lib/supabase';
+import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, getWatchOpenUrl, isHttpUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
@@ -73,10 +73,13 @@ function StatusBadge({ active, hasAlert }: { active: boolean; hasAlert?: boolean
   );
 }
 
-function FeedItem({ alert }: { alert: SecretAgentAlert }) {
+function FeedItem({ alert, missions }: { alert: SecretAgentAlert; missions: SecretAgentMission[] }) {
   const isAlert = alert.alert_type === 'condition_met';
   const isError = alert.alert_type === 'check_error';
   const time = new Date(alert.triggered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const fromPayload = isHttpUrl(alert.payload?.open_url) ? alert.payload.open_url.trim() : null;
+  const mission = missions.find((m) => m.id === alert.mission_id);
+  const openUrl = fromPayload ?? (mission ? getWatchOpenUrl(mission) : null);
 
   return (
     <div className="px-5 py-3 flex items-start gap-3 hover:bg-zinc-800/20 transition-colors">
@@ -88,9 +91,20 @@ function FeedItem({ alert }: { alert: SecretAgentAlert }) {
       }
       <div className="flex-1 min-w-0">
         <p className="text-xs text-zinc-300 leading-snug truncate">{alert.message}</p>
-        <div className="flex items-center gap-1 mt-1">
+        <div className="flex items-center gap-2 mt-1">
           <Clock size={9} className="text-zinc-600" />
           <span className="text-[12px] font-mono text-zinc-600">{time}</span>
+          {openUrl && (
+            <a
+              href={openUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 hover:text-emerald-300 uppercase tracking-widest"
+            >
+              <ExternalLink size={10} />
+              Open
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -429,10 +443,11 @@ export default function CommandCenter({
               {tabMissions.map((m) => {
                 const Icon = WATCH_ICONS[m.watch_type as WatchType] ?? Eye;
                 const hasAlert = m.status_message.startsWith('⚠') || m.status_message.startsWith('✓');
+                const openUrl = getWatchOpenUrl(m);
                 return (
                   <div
                     key={m.id}
-                    className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-800/30 transition-colors duration-150 cursor-pointer group"
+                    className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-800/30 transition-colors duration-150 group"
                   >
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
                     <Icon size={14} className="text-zinc-500 flex-shrink-0" />
@@ -454,7 +469,20 @@ export default function CommandCenter({
                         </p>
                       )}
                     </div>
-                    <ChevronRight size={14} className="text-zinc-700 group-hover:text-zinc-400 transition-colors flex-shrink-0" />
+                    {openUrl ? (
+                      <a
+                        href={openUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open source"
+                        className="flex-shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
+                      >
+                        Open
+                        <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <ChevronRight size={14} className="text-zinc-700 flex-shrink-0" />
+                    )}
                   </div>
                 );
               })}
@@ -492,7 +520,7 @@ export default function CommandCenter({
             ) : (
               <div className="divide-y divide-zinc-800/50 max-h-[360px] overflow-y-auto">
                 {alerts.map((alert) => (
-                  <FeedItem key={alert.id} alert={alert} />
+                  <FeedItem key={alert.id} alert={alert} missions={missions} />
                 ))}
               </div>
             )}
