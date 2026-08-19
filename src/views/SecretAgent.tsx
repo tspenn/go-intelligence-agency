@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, Shield, Cloud, Tag, Settings, Bell, BellOff, LogOut, LogIn, TrendingUp,
   Bitcoin, Activity, Wind, Globe, Rss, Newspaper, FolderOpen,
-  Webhook, FolderKanban, Trophy, ExternalLink, ChevronDown,
+  Webhook, FolderKanban, Trophy, ExternalLink, ChevronDown, RefreshCw,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, parseCondition, GIA_TIER_LIMITS, getWatchOpenUrl, getFindingOpenUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
@@ -230,6 +230,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showPortfolioView, setShowPortfolioView] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -302,6 +303,16 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       .order('triggered_at', { ascending: false })
       .limit(100);
     if (data) setFindings(data as SecretAgentAlert[]);
+  }
+
+  async function refreshIntel() {
+    if (!user || refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([loadMissions(), loadFindings()]);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function activateMission() {
@@ -391,6 +402,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         setShowSettingsModal={setShowSettingsModal}
         setShowPortfolioView={setShowPortfolioView}
         loadMissions={loadMissions}
+        refreshIntel={refreshIntel}
+        refreshing={refreshing}
         selectedOption={selectedOption}
         MISSION_LIMIT={MISSION_LIMIT}
       />
@@ -445,7 +458,16 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
               <LogIn size={11} />Sign In
             </button>
           )}
-          <button onClick={() => setShowAuthModal(true)} className="w-8 h-8 flex items-center justify-center rounded-full border border-[#333] hover:border-amber-500/50 transition-colors text-[#a0a0a0] hover:text-amber-400">
+          <button
+            type="button"
+            onClick={() => void refreshIntel()}
+            disabled={!user || refreshing}
+            title="Refresh"
+            className="w-8 h-8 flex items-center justify-center rounded-full border border-[#333] hover:border-amber-500/50 transition-colors text-[#a0a0a0] hover:text-amber-400 disabled:opacity-40"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={() => setShowSettingsModal(true)} className="w-8 h-8 flex items-center justify-center rounded-full border border-[#333] hover:border-amber-500/50 transition-colors text-[#a0a0a0] hover:text-amber-400">
             <Settings size={14} />
           </button>
         </div>
@@ -576,6 +598,8 @@ interface GIAViewProps {
   setShowSettingsModal: (v: boolean) => void;
   setShowPortfolioView: (v: boolean) => void;
   loadMissions: () => void;
+  refreshIntel: () => void;
+  refreshing: boolean;
   selectedOption: WatchOption;
   MISSION_LIMIT: number;
 }
@@ -589,7 +613,7 @@ function GIAView({
   webhookUrl, setWebhookUrl,
   onSwitchMode, showAuthModal, setShowAuthModal,
   setShowSettingsModal, setShowPortfolioView,
-  loadMissions, selectedOption, MISSION_LIMIT,
+  loadMissions, refreshIntel, refreshing, selectedOption, MISSION_LIMIT,
 }: GIAViewProps) {
 
   const tierLimits = GIA_TIER_LIMITS[userTier] ?? GIA_TIER_LIMITS.operative;
@@ -635,6 +659,17 @@ function GIAView({
               className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400"
             >
               <FolderKanban size={13} />
+            </button>
+          )}
+          {user && (
+            <button
+              type="button"
+              onClick={() => void refreshIntel()}
+              disabled={refreshing}
+              title="Refresh"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400 disabled:opacity-40"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
           {user && (

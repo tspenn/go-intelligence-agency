@@ -3,7 +3,7 @@ import {
   Shield, Eye, Lock, Radio, Target,
   ChevronRight, ChevronDown, Zap, Globe, FileText,
   AlertTriangle, CheckCircle, Clock, ArrowRight,
-  Tag, Cloud, TrendingUp, LogOut, LogIn, Settings,
+  Tag, Cloud, TrendingUp, LogOut, LogIn, Settings, RefreshCw,
   Bitcoin, Activity, Wind, Rss, Newspaper, ExternalLink,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, getWatchOpenUrl, getFindingOpenUrl } from '../lib/supabase';
@@ -124,6 +124,7 @@ export default function CommandCenter({
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
 
   const user = auth.user;
@@ -143,24 +144,35 @@ export default function CommandCenter({
     }
   }, [user]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(silent = false) {
+    if (!user) return;
+    if (!silent) setLoading(true);
     const [missionsRes, alertsRes] = await Promise.all([
       supabase
         .from('secret_agent_missions')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false }),
       supabase
         .from('secret_agent_alerts')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .order('triggered_at', { ascending: false })
         .limit(100),
     ]);
     if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
     if (alertsRes.data) setAlerts(alertsRes.data as SecretAgentAlert[]);
-    setLoading(false);
+    if (!silent) setLoading(false);
+  }
+
+  async function refreshIntel() {
+    if (!user || refreshing) return;
+    setRefreshing(true);
+    try {
+      await loadData(true);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const utcTime = time.toUTCString().split(' ')[4];
@@ -222,6 +234,17 @@ export default function CommandCenter({
               <p className="text-xs font-mono text-zinc-400">{utcTime} UTC</p>
               <p className="text-[12px] font-mono text-zinc-600">{utcDate}</p>
             </div>
+            {user && (
+              <button
+                type="button"
+                onClick={() => void refreshIntel()}
+                disabled={refreshing}
+                title="Refresh"
+                className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors disabled:opacity-40"
+              >
+                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              </button>
+            )}
             {user && (
               <button
                 onClick={() => setShowSettingsModal(true)}
