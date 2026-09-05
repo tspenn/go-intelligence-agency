@@ -157,6 +157,11 @@ function MissionCard({
           <p className="font-mono text-[12px] text-[#a0a0a0] mt-1 truncate">
             {isGIA ? 'TARGET' : 'TARGET'}: {mission.target || '—'} · {isGIA ? 'THRESHOLD' : 'TRIGGER'}: {mission.condition_text || '—'}
           </p>
+          {mission.last_value && (
+            <p className={`mt-2 text-sm leading-relaxed ${isGIA ? 'text-[#e8eee9]' : 'text-[#c8c0b0]'}`}>
+              Last report: {mission.last_value}
+            </p>
+          )}
           {mission.last_checked_at && (
             <p className="font-mono text-[11px] text-[#8a8a8a] mt-0.5">
               Last check: {new Date(mission.last_checked_at).toLocaleString()}

@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronDown, Zap, Globe, FileText,
   AlertTriangle, CheckCircle, Clock, ArrowRight,
   Tag, Cloud, TrendingUp, LogOut, LogIn, Settings, RefreshCw,
-  Bitcoin, Activity, Wind, Rss, Newspaper, ExternalLink,
+  Bitcoin, Activity, Wind, Rss, Newspaper, ExternalLink, FolderOpen,
 } from 'lucide-react';
 import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchType, getWatchOpenUrl, getFindingOpenUrl } from '../lib/supabase';
 import { signOut } from '../lib/auth';
@@ -51,6 +51,38 @@ function Ticker() {
       </div>
     </div>
   );
+}
+
+function standingReport(
+  mission: SecretAgentMission,
+  latestFinding?: SecretAgentAlert | null,
+): { headline: string; detail: string } {
+  if (latestFinding?.message) {
+    return {
+      headline: latestFinding.message,
+      detail: latestFinding.triggered_at
+        ? `Reported ${new Date(latestFinding.triggered_at).toLocaleString()}`
+        : 'Latest report',
+    };
+  }
+  if (mission.last_value) {
+    return {
+      headline: mission.last_value,
+      detail: mission.last_checked_at
+        ? `Last check ${new Date(mission.last_checked_at).toLocaleString()}`
+        : 'Standing reading',
+    };
+  }
+  if (mission.last_checked_at) {
+    return {
+      headline: mission.status_message || 'Checked. Nothing new to report.',
+      detail: `Last check ${new Date(mission.last_checked_at).toLocaleString()}`,
+    };
+  }
+  return {
+    headline: 'Waiting on the first hourly check.',
+    detail: 'This row keeps the last report — come back here to look again.',
+  };
 }
 
 function StatusBadge({ active, hasAlert }: { active: boolean; hasAlert?: boolean }) {
@@ -148,6 +180,19 @@ export default function CommandCenter({
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    function onReturn() {
+      if (document.visibilityState === 'visible') void loadData(true);
+    }
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    return () => {
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+    };
+  }, [user]);
+
   async function loadData(silent = false) {
     if (!user) return;
     if (!silent) setLoading(true);
@@ -191,11 +236,16 @@ export default function CommandCenter({
     .filter((m) => m.last_checked_at)
     .sort((a, b) => new Date(b.last_checked_at!).getTime() - new Date(a.last_checked_at!).getTime())[0];
 
-  const tabMissions = activeTab === 'missions'
-    ? activeMissions
-    : activeTab === 'archive'
-      ? missions.filter((m) => !m.active)
-      : missions;
+  const firedIds = new Set(
+    alerts.filter((a) => a.alert_type === 'condition_met').map((a) => a.mission_id),
+  );
+  const tabMissions = activeTab === 'archive'
+    ? missions.filter((m) => !m.active)
+    : activeTab === 'fired'
+      ? missions.filter((m) => firedIds.has(m.id))
+      : activeTab === 'all'
+        ? missions
+        : activeMissions;
 
   return (
     <div className={`min-h-screen text-zinc-100 font-['Inter',sans-serif] flex flex-col ${isGIA ? 'bg-[#171c20]' : 'bg-zinc-950'}`}>
@@ -464,18 +514,38 @@ export default function CommandCenter({
       <main className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Missions panel */}
-        <div className="lg:col-span-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+        <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+          <div className={`border-b px-6 py-4 ${isGIA ? 'border-[#4a5f56]' : 'border-zinc-800'}`}>
+            {isGIA && (
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-white">The Board</p>
+                <p className="text-sm text-zinc-300 mt-0.5">
+                  Every operative keeps a summary here. When a report lands, it stays on this row so you have a place to look again.
+                </p>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
             <div className="flex gap-1">
-              {['missions', 'all', 'archive'].map((tab) => (
+              {(isGIA
+                ? [
+                    { id: 'missions', label: 'On the board' },
+                    { id: 'fired', label: 'Reports' },
+                    { id: 'archive', label: 'Archive' },
+                  ]
+                : [
+                    { id: 'missions', label: 'Missions' },
+                    { id: 'all', label: 'All' },
+                    { id: 'archive', label: 'Archive' },
+                  ]
+              ).map((tab) => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors duration-150 ${
-                    activeTab === tab ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                    activeTab === tab.id ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  {tab}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -486,6 +556,7 @@ export default function CommandCenter({
               {isGIA ? 'Deploy Operative' : 'New Mission'}
               <ChevronRight size={13} />
             </button>
+            </div>
           </div>
 
           {loading ? (
@@ -506,12 +577,18 @@ export default function CommandCenter({
             </div>
           ) : tabMissions.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-xs font-mono text-zinc-400 tracking-widest uppercase">No missions in this view</p>
+              <p className="text-sm text-zinc-300">
+                {isGIA && activeTab === 'fired'
+                  ? 'No reports yet. When an operative fires, the summary lives on this list.'
+                  : isGIA
+                    ? 'Nothing on the board yet. Deploy an operative — every report will sit on that row.'
+                    : 'No missions in this view'}
+              </p>
               <button
                 onClick={onSwitchMode}
                 className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-mono"
               >
-                + Deploy first agent →
+                {isGIA ? '+ Deploy first operative →' : '+ Deploy first agent →'}
               </button>
             </div>
           ) : (
@@ -523,32 +600,56 @@ export default function CommandCenter({
                 const missionFindings = alerts.filter(
                   (a) => a.mission_id === m.id && a.alert_type === 'condition_met'
                 );
+                const latestFinding = missionFindings[0] ?? null;
+                const report = standingReport(m, latestFinding);
                 const expanded = expandedMissionId === m.id;
                 return (
-                  <div key={m.id} className="divide-y divide-zinc-800/40">
+                  <div key={m.id} className={`divide-y ${isGIA ? 'divide-[#4a5f56]/40' : 'divide-zinc-800/40'}`}>
                     <div
-                      className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-800/30 transition-colors duration-150 group cursor-pointer"
+                      className={`px-6 py-4 flex items-start gap-4 transition-colors duration-150 group cursor-pointer ${isGIA ? 'hover:bg-[#243038]' : 'hover:bg-zinc-800/30'}`}
                       onClick={() => setExpandedMissionId(expanded ? null : m.id)}
                     >
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
-                      <Icon size={14} className="text-zinc-500 flex-shrink-0" />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-2 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                      <Icon size={14} className={`flex-shrink-0 mt-1.5 ${isGIA ? 'text-emerald-400' : 'text-zinc-500'}`} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <StatusBadge active={m.active} hasAlert={hasAlert} />
-                          <span className="font-mono text-[13px] text-zinc-600 uppercase">{m.watch_type.replace('_', ' ')}</span>
+                          <span className="font-mono text-[12px] text-zinc-400 uppercase">{m.watch_type.replace('_', ' ')}</span>
+                          {isGIA && m.portfolio_name && (
+                            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-emerald-300">
+                              <FolderOpen size={10} />
+                              {m.portfolio_name}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors truncate">
-                          {m.codename}
+                        <p className="text-base font-semibold text-white group-hover:text-emerald-100 transition-colors">
+                          {isGIA ? m.target : m.codename}
                         </p>
-                        <p className="font-mono text-[12px] text-zinc-600 truncate mt-0.5">{m.status_message}</p>
-                        <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-emerald-500/70">
-                          Record · {missionFindings.length} finding{missionFindings.length === 1 ? '' : 's'}
+                        {!isGIA && (
+                          <p className="font-mono text-[12px] text-zinc-500 truncate mt-0.5">{m.status_message}</p>
+                        )}
+                        {isGIA && (
+                          <div className="mt-2 rounded-md border border-[#4a5f56] bg-[#171c20] px-3 py-2.5">
+                            <p className="text-[11px] font-mono uppercase tracking-widest text-emerald-300 mb-1">
+                              Last report
+                            </p>
+                            <p className="text-sm text-zinc-100 leading-relaxed">{report.headline}</p>
+                            <p className="text-[12px] text-zinc-400 mt-1">{report.detail}</p>
+                            {m.last_value && latestFinding && (
+                              <p className="text-[12px] text-zinc-400 mt-1">Standing reading: {m.last_value}</p>
+                            )}
+                          </div>
+                        )}
+                        <p className={`mt-2 font-mono text-[11px] uppercase tracking-widest ${isGIA ? 'text-emerald-300' : 'text-emerald-500/70'}`}>
+                          {missionFindings.length} report{missionFindings.length === 1 ? '' : 's'} · tap for the list
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-[12px] font-mono text-zinc-500 truncate max-w-[120px]">{m.target}</p>
+                        {!isGIA && (
+                          <p className="text-[12px] font-mono text-zinc-500 truncate max-w-[120px]">{m.target}</p>
+                        )}
                         {m.last_checked_at && (
-                          <p className="text-[13px] font-mono text-zinc-700 mt-0.5">
+                          <p className={`text-[12px] font-mono mt-0.5 ${isGIA ? 'text-zinc-400' : 'text-zinc-500'}`}>
                             {new Date(m.last_checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         )}
@@ -560,19 +661,21 @@ export default function CommandCenter({
                           rel="noopener noreferrer"
                           title="Open source"
                           onClick={(e) => e.stopPropagation()}
-                          className="flex-shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300"
+                          className="flex-shrink-0 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300 mt-1.5"
                         >
                           Open
                           <ExternalLink size={12} />
                         </a>
                       ) : (
-                        <ChevronDown size={14} className={`text-zinc-500 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`text-zinc-400 flex-shrink-0 mt-1.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                       )}
                     </div>
                     {expanded && (
-                      <div className="px-6 pb-4 pt-1 bg-zinc-900/40">
+                      <div className={`px-6 pb-4 pt-2 ${isGIA ? 'bg-[#171c20]' : 'bg-zinc-900/40'}`}>
                         {missionFindings.length === 0 ? (
-                          <p className="font-mono text-[12px] text-zinc-600">No findings logged yet. Hits will collect here as the watch sweeps.</p>
+                          <p className="text-sm text-zinc-300">
+                            No hits yet. The last reading still stays on this row after each hourly check.
+                          </p>
                         ) : (
                           <div className="flex flex-col gap-2">
                             {missionFindings.map((finding, index) => {
@@ -585,15 +688,15 @@ export default function CommandCenter({
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
-                                      className="font-mono text-[12px] text-emerald-400/90 underline underline-offset-2 inline-flex items-start gap-1"
+                                      className="text-sm text-emerald-300 underline underline-offset-2 inline-flex items-start gap-1"
                                     >
                                       <span>{finding.message}</span>
                                       <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
                                     </a>
                                   ) : (
-                                    <p className="font-mono text-[12px] text-zinc-400">{finding.message}</p>
+                                    <p className="text-sm text-zinc-200">{finding.message}</p>
                                   )}
-                                  <p className="font-mono text-[11px] text-zinc-600 mt-0.5">
+                                  <p className="text-[12px] text-zinc-400 mt-0.5">
                                     {new Date(finding.triggered_at).toLocaleString()}
                                   </p>
                                 </div>
@@ -678,7 +781,7 @@ export default function CommandCenter({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: isGIA ? 'Deploy Operative' : 'New Mission', icon: Target, action: onSwitchMode },
-                { label: 'Intel Log', icon: FileText, action: () => setActiveTab('all') },
+                { label: isGIA ? 'Reports' : 'Intel Log', icon: FileText, action: () => setActiveTab(isGIA ? 'fired' : 'all') },
               ].map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}
