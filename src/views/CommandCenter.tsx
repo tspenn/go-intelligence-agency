@@ -12,7 +12,8 @@ import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent } from '../lib/appMode';
-import { needsEmailForFeatures, trialDaysRemaining } from '../lib/trial';
+import { isGuestSession, trialDaysRemaining } from '../lib/trial';
+import LeaveWarning from '../components/LeaveWarning';
 
 const WATCH_ICONS: Record<WatchType, typeof Eye> = {
   sale_price: Tag,
@@ -126,6 +127,7 @@ export default function CommandCenter({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'claim'>('signin');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
 
@@ -249,14 +251,7 @@ export default function CommandCenter({
             )}
             {user && (
               <button
-                onClick={() => {
-                  if (needsEmailForFeatures(user)) {
-                    setAuthModalMode('claim');
-                    setShowAuthModal(true);
-                    return;
-                  }
-                  setShowSettingsModal(true);
-                }}
+                onClick={() => setShowSettingsModal(true)}
                 title="Settings"
                 className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
               >
@@ -265,8 +260,11 @@ export default function CommandCenter({
             )}
             {user ? (
               <button
-                onClick={() => signOut()}
-                title="Sign out"
+                onClick={() => {
+                  if (isGuestSession(user)) setShowLeaveWarning(true);
+                  else void signOut();
+                }}
+                title={isGuestSession(user) ? 'Leave' : 'Sign out'}
                 className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition-colors"
               >
                 <LogOut size={14} />
@@ -288,12 +286,13 @@ export default function CommandCenter({
 
       <Ticker />
 
-      {needsEmailForFeatures(user) && (
+      {isGuestSession(user) && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 text-center">
           <p className="font-mono text-[12px] text-emerald-300">
             {trialDaysRemaining(user) != null
               ? `${trialDaysRemaining(user)} days left in your free trial.`
               : 'Your free 30-day trial is running.'}
+            {' '}This browser keeps it.
             {' '}
             <button
               type="button"
@@ -303,9 +302,9 @@ export default function CommandCenter({
               }}
               className="underline underline-offset-2 hover:text-white"
             >
-              Add email
+              Sign up
             </button>
-            {' '}to deploy operatives, turn on Pings, and run watches.
+            {' '}to keep it if you leave or switch devices.
           </p>
         </div>
       )}
@@ -737,6 +736,20 @@ export default function CommandCenter({
           onSuccess={() => {
             setShowAuthModal(false);
             loadData();
+          }}
+        />
+      )}
+      {showLeaveWarning && (
+        <LeaveWarning
+          onStay={() => setShowLeaveWarning(false)}
+          onSave={() => {
+            setShowLeaveWarning(false);
+            setAuthModalMode('claim');
+            setShowAuthModal(true);
+          }}
+          onLeave={() => {
+            setShowLeaveWarning(false);
+            void signOut();
           }}
         />
       )}

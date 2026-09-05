@@ -12,7 +12,8 @@ import SettingsModal from '../components/SettingsModal';
 import PortfolioView from '../components/PortfolioView';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent, atMissionLimit } from '../lib/appMode';
-import { needsEmailForFeatures, trialDaysRemaining } from '../lib/trial';
+import { isGuestSession, trialDaysRemaining } from '../lib/trial';
+import LeaveWarning from '../components/LeaveWarning';
 
 // ─── Watch type config ────────────────────────────────────────────────────────
 
@@ -232,6 +233,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'claim'>('signin');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPortfolioView, setShowPortfolioView] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
@@ -319,8 +321,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   async function activateMission() {
     if (!target.trim() || !condition.trim()) return;
-    if (!user || needsEmailForFeatures(user)) {
-      setAuthModalMode('claim');
+    if (!user) {
+      setAuthModalMode('signin');
       setShowAuthModal(true);
       return;
     }
@@ -364,8 +366,8 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   }
 
   async function togglePush() {
-    if (!user || needsEmailForFeatures(user)) {
-      setAuthModalMode('claim');
+    if (!user) {
+      setAuthModalMode('signin');
       setShowAuthModal(true);
       return;
     }
@@ -391,12 +393,13 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   if (isGIA) return (
     <>
-      {needsEmailForFeatures(user) && (
+      {isGuestSession(user) && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 text-center">
           <p className="font-mono text-[12px] text-emerald-300">
             {trialDaysRemaining(user) != null
               ? `${trialDaysRemaining(user)} days left in your free trial.`
               : 'Your free 30-day trial is running.'}
+            {' '}This browser keeps it.
             {' '}
             <button
               type="button"
@@ -406,9 +409,9 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
               }}
               className="underline underline-offset-2 hover:text-white"
             >
-              Add email
+              Sign up
             </button>
-            {' '}to deploy operatives, turn on Pings, and run watches.
+            {' '}to keep it if you leave or switch devices.
           </p>
         </div>
       )}
@@ -433,21 +436,32 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
           if (open) setAuthModalMode('signin');
           setShowAuthModal(open);
         }}
-        setShowSettingsModal={(open) => {
-          if (open && needsEmailForFeatures(user)) {
-            setAuthModalMode('claim');
-            setShowAuthModal(true);
-            return;
-          }
-          setShowSettingsModal(open);
-        }}
+        setShowSettingsModal={setShowSettingsModal}
         setShowPortfolioView={setShowPortfolioView}
+        onLeave={() => {
+          if (isGuestSession(user)) setShowLeaveWarning(true);
+          else void signOut();
+        }}
         loadMissions={loadMissions}
         refreshIntel={refreshIntel}
         refreshing={refreshing}
         selectedOption={selectedOption}
         MISSION_LIMIT={MISSION_LIMIT}
       />
+      {showLeaveWarning && (
+        <LeaveWarning
+          onStay={() => setShowLeaveWarning(false)}
+          onSave={() => {
+            setShowLeaveWarning(false);
+            setAuthModalMode('claim');
+            setShowAuthModal(true);
+          }}
+          onLeave={() => {
+            setShowLeaveWarning(false);
+            void signOut();
+          }}
+        />
+      )}
       {showAuthModal && (
         <AuthModal
           initialMode={authModalMode}
@@ -491,7 +505,14 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
           {user ? (
             <div className="flex items-center gap-2">
               <span className="hidden sm:block font-mono text-[11px] text-[#a0a0a0] max-w-[120px] truncate">{user.email}</span>
-              <button onClick={() => signOut()} title="Sign out" className="w-8 h-8 flex items-center justify-center rounded-full border border-[#333] hover:border-red-500/40 transition-colors text-[#a0a0a0] hover:text-red-400">
+              <button
+                onClick={() => {
+                  if (isGuestSession(user)) setShowLeaveWarning(true);
+                  else void signOut();
+                }}
+                title={isGuestSession(user) ? 'Leave' : 'Sign out'}
+                className="w-8 h-8 flex items-center justify-center rounded-full border border-[#333] hover:border-red-500/40 transition-colors text-[#a0a0a0] hover:text-red-400"
+              >
                 <LogOut size={13} />
               </button>
             </div>
@@ -612,6 +633,20 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
       <SATicker />
 
+      {showLeaveWarning && (
+        <LeaveWarning
+          onStay={() => setShowLeaveWarning(false)}
+          onSave={() => {
+            setShowLeaveWarning(false);
+            setAuthModalMode('claim');
+            setShowAuthModal(true);
+          }}
+          onLeave={() => {
+            setShowLeaveWarning(false);
+            void signOut();
+          }}
+        />
+      )}
       {showAuthModal && <AuthModal initialMode={authModalMode} onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); loadMissions(); }} />}
     </div>
   );
@@ -639,6 +674,7 @@ interface GIAViewProps {
   showAuthModal: boolean; setShowAuthModal: (v: boolean) => void;
   setShowSettingsModal: (v: boolean) => void;
   setShowPortfolioView: (v: boolean) => void;
+  onLeave: () => void;
   loadMissions: () => void;
   refreshIntel: () => void;
   refreshing: boolean;
@@ -654,7 +690,7 @@ function GIAView({
   notifyPush, setNotifyPush,
   webhookUrl, setWebhookUrl,
   onSwitchMode, showAuthModal, setShowAuthModal,
-  setShowSettingsModal, setShowPortfolioView,
+  setShowSettingsModal, setShowPortfolioView, onLeave,
   loadMissions, refreshIntel, refreshing, selectedOption, MISSION_LIMIT,
 }: GIAViewProps) {
 
@@ -726,7 +762,7 @@ function GIAView({
           {user ? (
             <div className="flex items-center gap-2">
               <span className="hidden sm:block font-mono text-[11px] text-[#888] max-w-[140px] truncate">{user.email}</span>
-              <button onClick={() => signOut()} title="Sign out" className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-red-500/40 transition-colors text-[#666] hover:text-red-400">
+              <button onClick={onLeave} title={user.email ? 'Sign out' : 'Leave'} className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-red-500/40 transition-colors text-[#666] hover:text-red-400">
                 <LogOut size={13} />
               </button>
             </div>

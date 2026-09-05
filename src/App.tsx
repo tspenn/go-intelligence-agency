@@ -4,7 +4,7 @@ import CommandCenter from './views/CommandCenter';
 import Landing from './views/Landing';
 import { useAuth } from './lib/auth';
 import { MODE } from './lib/appMode';
-import { shouldAutoStartTrial, startGuestTrial } from './lib/trial';
+import { isGuestSession, shouldAutoStartTrial, startGuestTrial } from './lib/trial';
 
 type Mode = 'agent' | 'command';
 
@@ -28,6 +28,16 @@ export default function App() {
       if (!result.ok) setGuestError(result.error);
     });
   }, [auth.loading, auth.user]);
+
+  useEffect(() => {
+    if (!isGuestSession(auth.user)) return;
+    function onLeave(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [auth.user]);
 
   // Deep-link from notification tap: open Operations Hub when ?mission= is present
   useEffect(() => {

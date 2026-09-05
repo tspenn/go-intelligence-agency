@@ -28,11 +28,15 @@ export function clearSignedOutSkip() {
   localStorage.removeItem(SKIP_AUTOSTART_KEY);
 }
 
-/** Email is required to deploy operatives, turn on Pings, or run watches. */
+/** Guest trial: signed in, but no email yet. Data stays on this browser only. */
+export function isGuestSession(user: User | null): boolean {
+  if (!user) return false;
+  return !!user.is_anonymous || !user.email;
+}
+
+/** True when there is no session at all (landing / signed out). */
 export function needsEmailForFeatures(user: User | null): boolean {
-  if (!user) return true;
-  if (user.is_anonymous) return true;
-  return !user.email;
+  return !user;
 }
 
 export function trialDaysRemaining(user: User | null): number | null {

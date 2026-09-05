@@ -43,7 +43,6 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
     setStartingTrial(false);
     if (!result.ok) {
       setTrialError(result.error);
-      openSignUp();
     }
   }
 
