@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { markSignedOut } from './trial';
 
 export interface AuthState {
   user: User | null;
@@ -40,6 +41,20 @@ export async function signUp(email: string, password: string) {
   return supabase.auth.signUp({ email, password });
 }
 
+export async function claimGuestAccount(email: string, password: string) {
+  const { data: current } = await supabase.auth.getUser();
+  if (current.user?.is_anonymous) {
+    const { error } = await supabase.auth.updateUser({ email, password });
+    if (error) {
+      const { error: emailOnlyError } = await supabase.auth.updateUser({ email });
+      if (emailOnlyError) return { data: current, error: emailOnlyError };
+    }
+    return { data: current, error: null };
+  }
+  return signUp(email, password);
+}
+
 export async function signOut() {
+  markSignedOut();
   return supabase.auth.signOut();
 }

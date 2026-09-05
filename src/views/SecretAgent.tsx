@@ -12,6 +12,7 @@ import SettingsModal from '../components/SettingsModal';
 import PortfolioView from '../components/PortfolioView';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent, atMissionLimit } from '../lib/appMode';
+import { needsEmailForFeatures, trialDaysRemaining } from '../lib/trial';
 
 // ─── Watch type config ────────────────────────────────────────────────────────
 
@@ -229,6 +230,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const [activating, setActivating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'claim'>('signin');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPortfolioView, setShowPortfolioView] = useState(false);
@@ -317,7 +319,11 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   async function activateMission() {
     if (!target.trim() || !condition.trim()) return;
-    if (!user) { setShowAuthModal(true); return; }
+    if (!user || needsEmailForFeatures(user)) {
+      setAuthModalMode('claim');
+      setShowAuthModal(true);
+      return;
+    }
     if (limitReached) return;
 
     setActivating(true);
@@ -358,7 +364,11 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   }
 
   async function togglePush() {
-    if (!user) { setShowAuthModal(true); return; }
+    if (!user || needsEmailForFeatures(user)) {
+      setAuthModalMode('claim');
+      setShowAuthModal(true);
+      return;
+    }
     setPushError(null);
     if (pushEnabled) {
       await disablePushNotifications(user.id);
@@ -381,6 +391,27 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
   if (isGIA) return (
     <>
+      {needsEmailForFeatures(user) && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 text-center">
+          <p className="font-mono text-[12px] text-emerald-300">
+            {trialDaysRemaining(user) != null
+              ? `${trialDaysRemaining(user)} days left in your free trial.`
+              : 'Your free 30-day trial is running.'}
+            {' '}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthModalMode('claim');
+                setShowAuthModal(true);
+              }}
+              className="underline underline-offset-2 hover:text-white"
+            >
+              Add email
+            </button>
+            {' '}to deploy operatives, turn on Pings, and run watches.
+          </p>
+        </div>
+      )}
       <GIAView
         boardId={boardId} setBoardId={setBoardId}
         target={target} setTarget={setTarget}
@@ -398,8 +429,18 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
         notifyPush={notifyPush} setNotifyPush={setNotifyPush}
         webhookUrl={webhookUrl} setWebhookUrl={setWebhookUrl}
         onSwitchMode={onSwitchMode}
-        showAuthModal={showAuthModal} setShowAuthModal={setShowAuthModal}
-        setShowSettingsModal={setShowSettingsModal}
+        showAuthModal={showAuthModal} setShowAuthModal={(open) => {
+          if (open) setAuthModalMode('signin');
+          setShowAuthModal(open);
+        }}
+        setShowSettingsModal={(open) => {
+          if (open && needsEmailForFeatures(user)) {
+            setAuthModalMode('claim');
+            setShowAuthModal(true);
+            return;
+          }
+          setShowSettingsModal(open);
+        }}
         setShowPortfolioView={setShowPortfolioView}
         loadMissions={loadMissions}
         refreshIntel={refreshIntel}
@@ -409,6 +450,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
       />
       {showAuthModal && (
         <AuthModal
+          initialMode={authModalMode}
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => { setShowAuthModal(false); loadMissions(); }}
         />
@@ -570,7 +612,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
 
       <SATicker />
 
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); loadMissions(); }} />}
+      {showAuthModal && <AuthModal initialMode={authModalMode} onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); loadMissions(); }} />}
     </div>
   );
 }
@@ -917,24 +959,35 @@ function GIAView({
             <div className="mt-10 border border-[#1a2a20] rounded-sm p-5">
               <p className="font-mono text-[11px] text-emerald-500/50 tracking-[0.25em] uppercase mb-4">Operational Clearance</p>
               <div className="flex flex-col gap-3">
-                {MODE.tiers.map((t) => (
-                  <div key={t.id} className={`flex items-center justify-between rounded border px-4 py-3 ${t.current ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-[#1a2a20] bg-[#0d0f12]'}`}>
+                {MODE.tiers.map((t) => {
+                  const resolvedTier = ['operative', 'director', 'agency'].includes(userTier) ? userTier : 'operative';
+                  const isCurrent = resolvedTier === t.id;
+                  return (
+                  <div key={t.id} className={`flex items-center justify-between rounded border px-4 py-3 ${isCurrent ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-[#1a2a20] bg-[#0d0f12]'}`}>
                     <div>
-                      <span className={`font-mono text-[12px] tracking-widest uppercase ${t.current ? 'text-emerald-400' : 'text-[#888]'}`}>{t.label}</span>
+                      <span className={`font-mono text-[12px] tracking-widest uppercase ${isCurrent ? 'text-emerald-400' : 'text-[#888]'}`}>{t.label}</span>
                       {t.trial && <span className="ml-2 font-mono text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 rounded px-1.5 py-0.5">{t.trial}</span>}
-                      {t.current && <span className="ml-2 font-mono text-[10px] text-emerald-500/50 uppercase tracking-wider">Current</span>}
+                      {isCurrent && <span className="ml-2 font-mono text-[10px] text-emerald-500/50 uppercase tracking-wider">Current</span>}
                       <p className="font-mono text-[11px] text-[#666] mt-0.5">{t.missionsLabel} · {t.interval}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-white font-semibold">{t.price}</p>
-                      {!t.current && !t.isFree && t.stripeLink && (
-                        <a href={t.stripeLink} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors">
-                          Upgrade →
-                        </a>
+                      {!isCurrent && t.stripeLink && !t.stripeLink.includes('REPLACE_WITH') && (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <a href={t.stripeLink} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors">
+                            {t.isFree ? 'Subscribe' : 'Upgrade'} →
+                          </a>
+                          {t.stripeLinkAnnual && (
+                            <a href={t.stripeLinkAnnual} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-emerald-400/70 hover:text-emerald-300 transition-colors">
+                              or {t.priceAnnual}
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

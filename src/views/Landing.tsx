@@ -9,12 +9,15 @@ import { useState } from 'react';
 import { Check, Lock, Shield, ExternalLink, Zap, Bell, BarChart2 } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
 import { MODE, isGIA, type TierConfig } from '../lib/appMode';
+import { startGuestTrial } from '../lib/trial';
 
 type AuthRequest = { open: boolean; mode: 'signin' | 'signup' };
 
-export default function Landing() {
+export default function Landing({ guestError }: { guestError?: string | null }) {
   const [auth, setAuth] = useState<AuthRequest>({ open: false, mode: 'signin' });
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
+  const [startingTrial, setStartingTrial] = useState(false);
+  const [trialError, setTrialError] = useState<string | null>(guestError ?? null);
 
   const accent = MODE.brandAccent;
   const hasAnnual = MODE.tiers.some((t) => t.priceAnnual);
@@ -28,6 +31,21 @@ export default function Landing() {
   function openSignUp() { setAuth({ open: true, mode: 'signup' }); }
   function openSignIn() { setAuth({ open: true, mode: 'signin' }); }
   function closeAuth()  { setAuth({ open: false, mode: auth.mode }); }
+
+  async function startFreeTrial() {
+    if (!isGIA) {
+      openSignUp();
+      return;
+    }
+    setTrialError(null);
+    setStartingTrial(true);
+    const result = await startGuestTrial();
+    setStartingTrial(false);
+    if (!result.ok) {
+      setTrialError(result.error);
+      openSignUp();
+    }
+  }
 
   return (
     <div className={`min-h-screen ${baseBg} text-[#f5f0e8] font-['DM_Sans',sans-serif] flex flex-col`}>
@@ -49,12 +67,13 @@ export default function Landing() {
               Sign In
             </button>
             <button
-              onClick={openSignUp}
+              onClick={() => void startFreeTrial()}
+              disabled={startingTrial}
               className={isGIA
                 ? 'deploy-btn !py-2 !px-5 !text-[11px]'
                 : 'activate-btn !py-2 !px-5 !text-[11px]'}
             >
-              Start Free Trial
+              {startingTrial ? 'Starting…' : 'Start Free Trial'}
             </button>
           </div>
         </div>
@@ -115,14 +134,18 @@ export default function Landing() {
 
             <div className="flex flex-col items-start gap-3">
               <button
-                onClick={openSignUp}
+                onClick={() => void startFreeTrial()}
+                disabled={startingTrial}
                 className={isGIA ? 'deploy-btn text-base !px-10 !py-4' : 'activate-btn text-base px-8 py-3.5'}
               >
-                {MODE.landing.heroCta}
+                {startingTrial ? 'Starting your trial…' : MODE.landing.heroCta}
               </button>
               <p className={`font-mono text-[12px] tracking-wide ${isGIA ? 'text-[#c8c8c8]' : 'text-[#888]'}`}>
                 {MODE.landing.heroCtaNote}
               </p>
+              {trialError && (
+                <p className="font-mono text-[12px] text-red-400 max-w-xl">{trialError}</p>
+              )}
             </div>
           </div>
         </div>
@@ -239,7 +262,7 @@ export default function Landing() {
                 tier={tier}
                 billing={billing}
                 accent={accent}
-                onFreeCta={openSignUp}
+                onFreeCta={() => void startFreeTrial()}
               />
             ))}
           </div>

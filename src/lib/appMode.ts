@@ -192,7 +192,7 @@ const GIA_CONFIG: ModeConfig = {
     description:
       'Deploy operatives on the markets, competitors, news signals, and data sources that move your business. Get briefed when something changes. No IT department. No enterprise contract. Just intelligence, on your terms.',
     heroCta: 'Start your free trial — 30 days',
-    heroCtaNote: 'No credit card. Full access. Cancel anytime.',
+    heroCtaNote: 'No credit card. Opens your 30-day trial immediately. Email only when you deploy.',
     pricingHeading: 'Operational Clearance',
     pricingSubhead: 'Built for people making decisions with information — not waiting for a quarterly report.',
   },
@@ -204,7 +204,7 @@ const GIA_CONFIG: ModeConfig = {
       priceAnnual: '$99.99/yr',
       annualSavingsNote: '2 months free',
       trial: '30 days',
-      trialNote: 'Full access. No credit card. Prove the value first.',
+      trialNote: 'No credit card. Opens immediately from a share. Email only to deploy, Ping, or watch.',
       missionsLabel: '5 active operatives',
       interval: 'Hourly checks',
       current: true,
@@ -219,8 +219,8 @@ const GIA_CONFIG: ModeConfig = {
         '30-day free trial — no card',
       ],
       // Kept for post-trial / renew flows — landing CTA must not open these during trial start
-      stripeLink: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_MONTHLY_LINK',
-      stripeLinkAnnual: 'https://buy.stripe.com/REPLACE_WITH_GIA_OPERATIVE_ANNUAL_LINK',
+      stripeLink: 'https://buy.stripe.com/5kQcN6bOxfue15wfCleME0q',
+      stripeLinkAnnual: 'https://buy.stripe.com/14AeVe8Cl2Hs01scq9eME0p',
     },
     {
       id: 'director',
@@ -240,8 +240,8 @@ const GIA_CONFIG: ModeConfig = {
         'Portfolio-level status overview',
         'Priority support',
       ],
-      stripeLink: 'https://buy.stripe.com/REPLACE_WITH_GIA_DIRECTOR_MONTHLY_LINK',
-      stripeLinkAnnual: 'https://buy.stripe.com/REPLACE_WITH_GIA_DIRECTOR_ANNUAL_LINK',
+      stripeLink: 'https://buy.stripe.com/bJe14o05P95Q9C289TeME0r',
+      stripeLinkAnnual: 'https://buy.stripe.com/bJedRabOxci26pQcq9eME0s',
     },
     {
       id: 'agency',
@@ -260,8 +260,8 @@ const GIA_CONFIG: ModeConfig = {
         'Webhook output to any system',
         'Dedicated support',
       ],
-      stripeLink: 'https://buy.stripe.com/REPLACE_WITH_GIA_AGENCY_MONTHLY_LINK',
-      stripeLinkAnnual: 'https://buy.stripe.com/REPLACE_WITH_GIA_AGENCY_ANNUAL_LINK',
+      stripeLink: 'https://buy.stripe.com/00w7sM2dX5TE8xYeyheME0t',
+      stripeLinkAnnual: 'https://buy.stripe.com/14A6oIaKt5TEbKafCleME0u',
     },
   ],
 };

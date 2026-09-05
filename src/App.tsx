@@ -4,6 +4,7 @@ import CommandCenter from './views/CommandCenter';
 import Landing from './views/Landing';
 import { useAuth } from './lib/auth';
 import { MODE } from './lib/appMode';
+import { shouldAutoStartTrial, startGuestTrial } from './lib/trial';
 
 type Mode = 'agent' | 'command';
 
@@ -15,10 +16,18 @@ export default function App() {
     return MODE.defaultView;
   });
   const auth = useAuth();
+  const [guestError, setGuestError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = MODE.documentTitle;
   }, []);
+
+  useEffect(() => {
+    if (auth.loading || auth.user || !shouldAutoStartTrial()) return;
+    void startGuestTrial().then((result) => {
+      if (!result.ok) setGuestError(result.error);
+    });
+  }, [auth.loading, auth.user]);
 
   // Deep-link from notification tap: open Operations Hub when ?mission= is present
   useEffect(() => {
@@ -52,9 +61,9 @@ export default function App() {
     );
   }
 
-  // Unauthenticated users see the Skyland Reach landing page.
+  // Unauthenticated users see the landing page — share/ad visits auto-start a guest trial above.
   if (!auth.user) {
-    return <Landing />;
+    return <Landing guestError={guestError} />;
   }
 
   // Authenticated users go straight to the app — landing is never shown.

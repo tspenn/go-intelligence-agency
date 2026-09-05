@@ -12,6 +12,7 @@ import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent } from '../lib/appMode';
+import { needsEmailForFeatures, trialDaysRemaining } from '../lib/trial';
 
 const WATCH_ICONS: Record<WatchType, typeof Eye> = {
   sale_price: Tag,
@@ -123,6 +124,7 @@ export default function CommandCenter({
   const [alerts, setAlerts] = useState<SecretAgentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'claim'>('signin');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
@@ -247,7 +249,14 @@ export default function CommandCenter({
             )}
             {user && (
               <button
-                onClick={() => setShowSettingsModal(true)}
+                onClick={() => {
+                  if (needsEmailForFeatures(user)) {
+                    setAuthModalMode('claim');
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  setShowSettingsModal(true);
+                }}
                 title="Settings"
                 className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
               >
@@ -264,7 +273,10 @@ export default function CommandCenter({
               </button>
             ) : (
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => {
+                  setAuthModalMode('signin');
+                  setShowAuthModal(true);
+                }}
                 className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
               >
                 <LogIn size={14} />
@@ -275,6 +287,28 @@ export default function CommandCenter({
       </header>
 
       <Ticker />
+
+      {needsEmailForFeatures(user) && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 text-center">
+          <p className="font-mono text-[12px] text-emerald-300">
+            {trialDaysRemaining(user) != null
+              ? `${trialDaysRemaining(user)} days left in your free trial.`
+              : 'Your free 30-day trial is running.'}
+            {' '}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthModalMode('claim');
+                setShowAuthModal(true);
+              }}
+              className="underline underline-offset-2 hover:text-white"
+            >
+              Add email
+            </button>
+            {' '}to deploy operatives, turn on Pings, and run watches.
+          </p>
+        </div>
+      )}
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-zinc-800 min-h-[320px] md:min-h-[380px] flex items-center">
@@ -297,7 +331,7 @@ export default function CommandCenter({
           <div className={isGIA ? 'flex-1 max-w-xl rounded-sm bg-black/30 px-5 py-6 md:px-7 md:py-7' : 'flex-1'}>
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {user ? `AGENT: ${user.email?.split('@')[0].toUpperCase()}` : 'SECURE CHANNEL ACTIVE'}
+              {user?.email ? `AGENT: ${user.email.split('@')[0].toUpperCase()}` : user ? 'TRIAL OPERATIVE' : 'SECURE CHANNEL ACTIVE'}
             </div>
             <h1 className="font-['Space_Grotesk',sans-serif] text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight mb-4">
               {isGIA ? (
@@ -599,9 +633,7 @@ export default function CommandCenter({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'New Mission', icon: Target, action: onSwitchMode },
-                { label: 'Send Signal', icon: Radio, action: () => {} },
                 { label: 'Intel Log', icon: FileText, action: () => setActiveTab('all') },
-                { label: 'Alert All', icon: AlertTriangle, action: () => {} },
               ].map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}
@@ -700,6 +732,7 @@ export default function CommandCenter({
 
       {showAuthModal && (
         <AuthModal
+          initialMode={authModalMode}
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => {
             setShowAuthModal(false);

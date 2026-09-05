@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Eye, EyeOff, Mail, Info } from 'lucide-react';
-import { signIn, signUp } from '../lib/auth';
+import { signIn, signUp, claimGuestAccount } from '../lib/auth';
 
 interface AuthModalProps {
   onClose: () => void;
   onSuccess: () => void;
   /** Optional initial mode — defaults to 'signin'. */
-  initialMode?: 'signin' | 'signup';
+  initialMode?: 'signin' | 'signup' | 'claim';
 }
 
-type Mode = 'signin' | 'signup';
+type Mode = 'signin' | 'signup' | 'claim';
 
 const SISTER_APPS_LINE =
   'One account for Secret Agent, FRIDAY Canvas, Go Shop, GoTRVL & LnkLokr';
@@ -69,7 +69,9 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
         if (err) throw err;
         onSuccess();
       } else {
-        const { error: err, data } = await signUp(email, password);
+        const { error: err, data } = mode === 'claim'
+          ? await claimGuestAccount(email, password)
+          : await signUp(email, password);
         if (err) {
           // Supabase sometimes returns an explicit error for existing emails
           if (isExistingAccountError(err.message)) {
@@ -78,12 +80,13 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
           } else {
             throw err;
           }
-        } else if ((data?.user?.identities?.length ?? 1) === 0) {
+        } else if (mode !== 'claim' && (data?.user?.identities?.length ?? 1) === 0) {
           // Supabase silent fake-success: email already registered,
           // no confirmation email was sent — identities array is empty
           localStorage.removeItem('is_new');
           setError('__existing__');
-        } else if (data?.session) {
+        } else if (data?.session || mode === 'claim') {
+          // Guest trial is already signed in — do not block on inbox confirmation.
           onSuccess();
         } else {
           setConfirmedEmail(email);
@@ -102,7 +105,12 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
     if (e.target === e.currentTarget) onClose();
   }
 
-  const heading = mode === 'signin' ? 'Welcome back' : 'Create your Skyland Reach account';
+  const heading =
+    mode === 'signin'
+      ? 'Welcome back'
+      : mode === 'claim'
+        ? 'Add email to use operatives'
+        : 'Create your Skyland Reach account';
 
   return (
     <div
@@ -166,7 +174,9 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
             <div className="text-center mb-1">
               <h2 className="text-[#f5f0e8] font-semibold text-lg mb-1.5">{heading}</h2>
               <p className="font-mono text-[11px] text-[#a0a0a0] leading-relaxed">
-                {SISTER_APPS_LINE}
+                {mode === 'claim'
+                  ? 'Your 30-day trial is already running. Email is only needed to deploy operatives, turn on Pings, and run watches.'
+                  : SISTER_APPS_LINE}
               </p>
             </div>
 
@@ -257,7 +267,9 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
                 ? 'Authenticating...'
                 : mode === 'signin'
                   ? 'Sign in'
-                  : 'Create account'}
+                  : mode === 'claim'
+                    ? 'Save email and continue'
+                    : 'Create account'}
             </button>
 
             {/* Footer mode toggle */}
