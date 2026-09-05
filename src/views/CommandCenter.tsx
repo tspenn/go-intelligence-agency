@@ -208,12 +208,19 @@ export default function CommandCenter({
               <Shield size={16} className="text-emerald-400" />
             </div>
             <div>
-              <span className="font-['Space_Grotesk',sans-serif] font-bold text-base tracking-tight text-white">
-                {isGIA ? 'GIA' : 'MY SECRET AGENT'}
-              </span>
-              <span className="ml-2 text-[12px] font-mono text-zinc-400 tracking-widest uppercase">
-                {isGIA ? 'OPS HUB' : 'GIA'}
-              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-['Space_Grotesk',sans-serif] font-bold text-base tracking-tight text-white">
+                  {isGIA ? 'GIA' : 'MY SECRET AGENT'}
+                </span>
+                <span className="text-[12px] font-mono text-zinc-400 tracking-widest uppercase">
+                  {isGIA ? 'OPS HUB' : 'GIA'}
+                </span>
+              </div>
+              {isGIA && (
+                <p className="font-mono text-[10px] text-emerald-300/90 tracking-wide">
+                  Go Intelligence Agency
+                </p>
+              )}
             </div>
           </div>
 
@@ -620,19 +627,24 @@ export default function CommandCenter({
         <div className="flex flex-col gap-6">
 
           {/* Live feed */}
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden flex-1">
-            <div className="border-b border-zinc-800 px-5 py-4 flex items-center gap-2">
+          <div className={`rounded-2xl overflow-hidden flex-1 border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+            <div className={`border-b px-5 py-4 flex items-center gap-2 ${isGIA ? 'border-[#4a5f56]' : 'border-zinc-800'}`}>
               <Radio size={13} className="text-emerald-400 animate-pulse" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-zinc-300">Intel Feed</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-zinc-200">Intel Feed</span>
             </div>
             {alerts.length === 0 ? (
               <div className="px-5 py-8 text-center">
-                <p className="text-[12px] font-mono text-zinc-700 tracking-widest uppercase">
+                <p className="text-[12px] font-mono text-zinc-400 tracking-widest uppercase">
                   {user ? 'No recent intel' : 'Sign in to see feed'}
                 </p>
+                {isGIA && user && (
+                  <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
+                    Findings show up here after an operative fires.
+                  </p>
+                )}
               </div>
             ) : (
-              <div className="divide-y divide-zinc-800/50 max-h-[360px] overflow-y-auto">
+              <div className="divide-y divide-zinc-700/50 max-h-[360px] overflow-y-auto">
                 {alerts.map((alert) => (
                   <FeedItem key={alert.id} alert={alert} missions={missions} />
                 ))}
@@ -640,18 +652,43 @@ export default function CommandCenter({
             )}
           </div>
 
+          {isGIA && (
+            <div className="bg-[#1e262c] border border-[#4a5f56] rounded-2xl p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300 mb-2">
+                What GIA is
+              </p>
+              <p className="text-base font-semibold text-white mb-2">
+                GIA means Go Intelligence Agency.
+              </p>
+              <p className="text-sm text-zinc-200 leading-relaxed mb-3">
+                It is your personal intelligence desk. You deploy operatives — not one watch —
+                across markets, restocks, scores, competitor pages, weather, and news. Group them
+                into portfolios. This hub is the board they report to.
+              </p>
+              <ol className="text-sm text-zinc-200 space-y-1.5 list-decimal list-inside">
+                <li>Deploy an operative on something that moves your day.</li>
+                <li>We check the whole board every hour.</li>
+                <li>When a piece moves, we brief you here and ping this device.</li>
+              </ol>
+            </div>
+          )}
+
           {/* Quick actions */}
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4">Quick Actions</p>
+          <div className={`rounded-2xl p-5 border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-widest mb-4 ${isGIA ? 'text-zinc-200' : 'text-zinc-500'}`}>Quick Actions</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'New Mission', icon: Target, action: onSwitchMode },
+                { label: isGIA ? 'Deploy Operative' : 'New Mission', icon: Target, action: onSwitchMode },
                 { label: 'Intel Log', icon: FileText, action: () => setActiveTab('all') },
               ].map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}
                   onClick={action}
-                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/40 transition-all duration-150 text-zinc-400 hover:text-white group active:scale-95"
+                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-150 group active:scale-95 ${
+                    isGIA
+                      ? 'border-[#4a5f56] text-zinc-200 hover:border-emerald-400 hover:bg-emerald-500/10 hover:text-white'
+                      : 'border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800/40 hover:text-white'
+                  }`}
                 >
                   <Icon size={16} className="group-hover:text-emerald-400 transition-colors" />
                   <span className="text-[12px] font-semibold uppercase tracking-wider">{label}</span>
@@ -661,58 +698,95 @@ export default function CommandCenter({
           </div>
 
           {/* Pricing / Tier panel */}
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4">
-              {isSecretAgent ? 'Upgrade Path' : 'Your Tier'}
+          <div className={`rounded-2xl p-5 border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${isGIA ? 'text-zinc-200' : 'text-zinc-500'}`}>
+              {isSecretAgent ? 'Upgrade Path' : 'How the desk grows'}
             </p>
-            <div className="flex flex-col gap-2">
+            {isGIA && (
+              <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                Same hub at every level. What changes is how much of the board you can run.
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
               {MODE.tiers.map((t) => (
                 <div
                   key={t.id}
-                  className={`rounded-lg border p-3 ${
+                  className={`rounded-lg border p-3.5 ${
                     t.current
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
-                      : 'border-zinc-800 bg-zinc-900/40'
+                      ? 'border-emerald-400/50 bg-emerald-500/10'
+                      : isGIA
+                        ? 'border-[#4a5f56] bg-[#171c20]'
+                        : 'border-zinc-800 bg-zinc-900/40'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[12px] font-mono uppercase tracking-widest ${t.current ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                    <span className={`text-[12px] font-mono uppercase tracking-widest ${t.current ? 'text-emerald-300' : 'text-zinc-300'}`}>
                       {t.label}
                     </span>
                     {t.current && (
-                      <span className="text-[12px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      <span className="text-[12px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded uppercase tracking-wider">
                         Current
                       </span>
                     )}
                   </div>
 
                   {t.trial && (
-                    <div className="inline-block bg-green-500/10 border border-green-500/20 rounded px-1.5 py-0.5 mb-1">
-                      <span className="text-[13px] font-mono text-green-400 uppercase tracking-wider">
-                        {t.trial}
+                    <div className="inline-block bg-green-500/15 border border-green-500/30 rounded px-1.5 py-0.5 mb-1">
+                      <span className="text-[13px] font-mono text-green-300 uppercase tracking-wider">
+                        {t.trial} free
                       </span>
                     </div>
                   )}
 
                   <p className="text-white font-semibold text-sm">
-                    {t.trial ? <span className="text-zinc-500 text-[12px] font-normal">then </span> : null}
+                    {t.trial ? <span className="text-zinc-400 text-[12px] font-normal">then </span> : null}
                     {t.price}
                   </p>
-                  <p className="text-[12px] font-mono text-zinc-500">{t.missionsLabel}</p>
+                  {t.summary ? (
+                    <p className="text-sm text-zinc-200 mt-1.5 leading-relaxed">{t.summary}</p>
+                  ) : (
+                    <p className="text-[12px] font-mono text-zinc-400">{t.missionsLabel}</p>
+                  )}
+
+                  {isGIA && t.featureBullets && t.featureBullets.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {t.featureBullets.slice(0, 5).map((feat) => (
+                        <li key={feat} className="text-[13px] text-zinc-300 leading-snug flex gap-2">
+                          <span className="text-emerald-400 flex-shrink-0">·</span>
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
                   {t.trialNote && (
-                    <p className="text-[13px] font-mono text-green-500/60 mt-1.5 leading-relaxed">
+                    <p className="text-[13px] font-mono text-emerald-300/80 mt-2 leading-relaxed">
                       {t.trialNote}
                     </p>
                   )}
 
                   {!t.current && (
-                    <a
-                      href={isSecretAgent ? 'https://go-i-agency.com' : '#'}
-                      className="mt-2 block text-center text-[12px] font-mono text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 py-1.5 rounded uppercase tracking-widest transition-colors"
-                    >
-                      Upgrade
-                    </a>
+                    t.isFree || isGuestSession(user) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthModalMode(isGuestSession(user) ? 'claim' : 'signin');
+                          setShowAuthModal(true);
+                        }}
+                        className="mt-3 w-full text-center text-[12px] font-mono text-emerald-300 hover:text-white border border-emerald-400/40 hover:border-emerald-300 py-2 rounded uppercase tracking-widest transition-colors"
+                      >
+                        {isGuestSession(user) ? 'Save to upgrade' : 'Upgrade'}
+                      </button>
+                    ) : (
+                      <a
+                        href={isSecretAgent ? 'https://www.go-i-agency.com' : (t.stripeLink ?? '#')}
+                        target={t.stripeLink ? '_blank' : undefined}
+                        rel={t.stripeLink ? 'noopener noreferrer' : undefined}
+                        className="mt-3 block text-center text-[12px] font-mono text-emerald-300 hover:text-white border border-emerald-400/40 hover:border-emerald-300 py-2 rounded uppercase tracking-widest transition-colors"
+                      >
+                        Upgrade
+                      </a>
+                    )
                   )}
                 </div>
               ))}
@@ -725,12 +799,12 @@ export default function CommandCenter({
       <footer className={`border-t border-zinc-800 ${isGIA ? 'bg-[#14191d]' : 'bg-zinc-950'}`}>
         <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Shield size={13} className="text-zinc-600" />
-            <span className="text-xs font-mono text-zinc-600 tracking-widest uppercase">
-              {MODE.name} — Classified
+            <Shield size={13} className="text-emerald-400" />
+            <span className="text-xs font-mono text-zinc-300 tracking-wide">
+              {isGIA ? 'GIA — Go Intelligence Agency' : `${MODE.name} — Classified`}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-zinc-700 font-mono">
+          <div className="flex items-center gap-4 text-xs text-zinc-400 font-mono">
             <span>ENCRYPTION: AES-256</span>
             <span className="w-1 h-1 rounded-full bg-zinc-700" />
             <span>CHECKS: HOURLY</span>

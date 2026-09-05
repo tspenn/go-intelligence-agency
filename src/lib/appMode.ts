@@ -37,6 +37,8 @@ export interface TierConfig {
   interval: string;
   /** Feature bullets shown on landing page pricing card */
   featureBullets?: string[];
+  /** One line: how this tier differs from the one below it */
+  summary?: string;
   /** True for the tier currently in use (shown in in-app pricing panel) */
   current?: boolean;
   /** Marks the "most popular" tier on the landing page */
@@ -210,13 +212,13 @@ const GIA_CONFIG: ModeConfig = {
       current: true,
       // Start with signup only — no Stripe until after the 30-day trial
       isFree: true,
+      summary: 'Start the desk. Five operatives, one hub, hourly checks.',
       featureBullets: [
-        '5 active operatives (missions)',
-        'Your Operations Hub dashboard',
-        'Hourly intelligence checks',
-        'Push notifications (device alerts)',
-        'Public-page & signal watches',
-        '30-day free trial — no card',
+        '5 active operatives on the board',
+        'Operations Hub — every signal in one place',
+        'Hourly checks across markets, pages, news, weather, scores',
+        'Ping this device when something moves',
+        '30-day trial — no card',
       ],
       // Kept for post-trial / renew flows — landing CTA must not open these during trial start
       stripeLink: 'https://buy.stripe.com/5kQcN6bOxfue15wfCleME0q',
@@ -231,13 +233,12 @@ const GIA_CONFIG: ModeConfig = {
       missionsLabel: '4 intelligence portfolios',
       interval: 'Hourly checks',
       highlight: true,
+      summary: 'Run books. Four portfolios, twenty operatives.',
       featureBullets: [
-        '4 intelligence portfolios',
-        'Up to 20 operatives total',
-        'Your Operations Hub dashboard',
-        'Hourly checks across all operatives',
-        'Push notifications (device alerts)',
-        'Portfolio-level status overview',
+        '4 portfolios (market book, competitor book, sports book…)',
+        'Up to 20 operatives across those books',
+        'Same hub — more coverage on the board',
+        'Hourly checks and device pings',
         'Priority support',
       ],
       stripeLink: 'https://buy.stripe.com/bJe14o05P95Q9C289TeME0r',
@@ -251,13 +252,13 @@ const GIA_CONFIG: ModeConfig = {
       annualSavingsNote: '2 months free',
       missionsLabel: 'Unlimited operations',
       interval: 'Priority checks',
+      summary: 'The full shop. Unlimited coverage, Sunday digest, webhooks.',
       featureBullets: [
-        'Unlimited portfolios & operatives',
-        'Priority intelligence checks',
-        'Push notifications (device alerts)',
-        'Weekly mission digest (Sunday nights)',
-        'Compound alert conditions',
-        'Webhook output to any system',
+        'Unlimited portfolios and operatives',
+        'Priority hourly checks',
+        'Device pings plus Sunday email digest',
+        'Morning brief when something fired overnight',
+        'Webhook out to your other systems',
         'Dedicated support',
       ],
       stripeLink: 'https://buy.stripe.com/00w7sM2dX5TE8xYeyheME0t',
