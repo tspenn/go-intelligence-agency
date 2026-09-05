@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { markSignedOut } from './trial';
+import { isGuestSession, markAccountSaved } from './trial';
 
 export interface AuthState {
   user: User | null;
@@ -55,6 +55,9 @@ export async function claimGuestAccount(email: string, password: string) {
 }
 
 export async function signOut() {
-  markSignedOut();
+  const { data } = await supabase.auth.getUser();
+  if (data.user && !isGuestSession(data.user)) {
+    markAccountSaved();
+  }
   return supabase.auth.signOut();
 }

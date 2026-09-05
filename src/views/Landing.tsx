@@ -1,20 +1,30 @@
 /**
- * Landing / Marketing page shown to UNAUTHENTICATED users only.
- *
- * Authenticated users skip this page — they go straight into the app
- * (SecretAgent or CommandCenter) per appMode.defaultView.
+ * Marketing page. During the 30-day guest trial this is skipped.
+ * After they Save, or after day 30, this is the Sign In screen.
  */
 
 import { useState } from 'react';
 import { Check, Lock, Shield, ExternalLink, Zap, Bell, BarChart2 } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
 import { MODE, isGIA, type TierConfig } from '../lib/appMode';
-import { startGuestTrial } from '../lib/trial';
+import { startGuestTrial, type LandingGate } from '../lib/trial';
 
-type AuthRequest = { open: boolean; mode: 'signin' | 'signup' };
+type AuthRequest = { open: boolean; mode: 'signin' | 'signup' | 'claim' };
 
-export default function Landing({ guestError }: { guestError?: string | null }) {
-  const [auth, setAuth] = useState<AuthRequest>({ open: false, mode: 'signin' });
+export default function Landing({
+  guestError,
+  gate = 'none',
+}: {
+  guestError?: string | null;
+  gate?: LandingGate;
+}) {
+  const [auth, setAuth] = useState<AuthRequest>(() =>
+    gate === 'expired'
+      ? { open: true, mode: 'claim' }
+      : gate === 'saved'
+        ? { open: true, mode: 'signin' }
+        : { open: false, mode: 'signin' },
+  );
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [startingTrial, setStartingTrial] = useState(false);
   const [trialError, setTrialError] = useState<string | null>(guestError ?? null);
@@ -32,9 +42,19 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
   function openSignIn() { setAuth({ open: true, mode: 'signin' }); }
   function closeAuth()  { setAuth({ open: false, mode: auth.mode }); }
 
+  function openSave() { setAuth({ open: true, mode: 'claim' }); }
+
   async function startFreeTrial() {
     if (!isGIA) {
       openSignUp();
+      return;
+    }
+    if (gate === 'saved') {
+      openSignIn();
+      return;
+    }
+    if (gate === 'expired') {
+      openSave();
       return;
     }
     setTrialError(null);
@@ -44,6 +64,18 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
     if (!result.ok) {
       setTrialError(result.error);
     }
+  }
+
+  function onPrimaryCta() {
+    if (gate === 'saved') {
+      openSignIn();
+      return;
+    }
+    if (gate === 'expired') {
+      openSave();
+      return;
+    }
+    void startFreeTrial();
   }
 
   return (
@@ -66,13 +98,19 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
               Sign In
             </button>
             <button
-              onClick={() => void startFreeTrial()}
+              onClick={onPrimaryCta}
               disabled={startingTrial}
               className={isGIA
                 ? 'deploy-btn !py-2 !px-5 !text-[11px]'
                 : 'activate-btn !py-2 !px-5 !text-[11px]'}
             >
-              {startingTrial ? 'Starting…' : 'Start Free Trial'}
+              {startingTrial
+                ? 'Starting…'
+                : gate === 'expired'
+                  ? 'Save'
+                  : gate === 'saved'
+                    ? 'Sign In'
+                    : 'Start Free Trial'}
             </button>
           </div>
         </div>
@@ -133,14 +171,24 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
 
             <div className="flex flex-col items-start gap-3">
               <button
-                onClick={() => void startFreeTrial()}
+                onClick={onPrimaryCta}
                 disabled={startingTrial}
                 className={isGIA ? 'deploy-btn text-base !px-10 !py-4' : 'activate-btn text-base px-8 py-3.5'}
               >
-                {startingTrial ? 'Starting your trial…' : MODE.landing.heroCta}
+                {startingTrial
+                  ? 'Starting your trial…'
+                  : gate === 'expired'
+                    ? 'Save to keep your trial'
+                    : gate === 'saved'
+                      ? 'Sign in'
+                      : MODE.landing.heroCta}
               </button>
               <p className={`font-mono text-[12px] tracking-wide ${isGIA ? 'text-[#c8c8c8]' : 'text-[#888]'}`}>
-                {MODE.landing.heroCtaNote}
+                {gate === 'expired'
+                  ? 'Your 30 days are up. Save or sign in to keep your operatives.'
+                  : gate === 'saved'
+                    ? 'This browser has a saved account. Sign in to continue.'
+                    : MODE.landing.heroCtaNote}
               </p>
               {trialError && (
                 <p className="font-mono text-[12px] text-red-400 max-w-xl">{trialError}</p>
@@ -261,7 +309,14 @@ export default function Landing({ guestError }: { guestError?: string | null }) 
                 tier={tier}
                 billing={billing}
                 accent={accent}
-                onFreeCta={() => void startFreeTrial()}
+                onFreeCta={onPrimaryCta}
+                freeCtaLabel={
+                  gate === 'expired'
+                    ? 'Save to keep your trial'
+                    : gate === 'saved'
+                      ? 'Sign in'
+                      : undefined
+                }
               />
             ))}
           </div>
@@ -318,11 +373,13 @@ function PricingCard({
   billing,
   accent,
   onFreeCta,
+  freeCtaLabel,
 }: {
   tier: TierConfig;
   billing: 'monthly' | 'annual';
   accent: 'amber' | 'emerald';
   onFreeCta: () => void;
+  freeCtaLabel?: string;
 }) {
   const accentText   = accent === 'emerald' ? 'text-emerald-400' : 'text-amber-400';
   const accentBg     = accent === 'emerald' ? 'bg-emerald-500/10' : 'bg-amber-500/10';
@@ -388,7 +445,8 @@ function PricingCard({
       <div className="mt-auto">
         {tier.isFree || !stripeUrl || stripeUrl.includes('REPLACE_WITH') ? (
           <button onClick={onFreeCta} className={ctaClass}>
-            {tier.trial ? `Start ${tier.trial.toLowerCase()} free` : 'Start free'}
+            {freeCtaLabel
+              ?? (tier.trial ? `Start ${tier.trial.toLowerCase()} free` : 'Start free')}
           </button>
         ) : (
           <>

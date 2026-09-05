@@ -47,12 +47,13 @@ export default function LeaveWarning({ onSave, onLeave, onStay }: LeaveWarningPr
             devices, you will not get back in unless you add an email first.
           </p>
           <p className="font-mono text-[12px] text-emerald-300/80 leading-relaxed mb-6">
-            Sign up now to keep this trial on any phone or PC.
+            Save now to keep this trial on any phone or PC. After you save, you will
+            sign in each time.
           </p>
 
           <div className="flex flex-col gap-2.5">
             <button type="button" onClick={onSave} className="deploy-btn w-full">
-              Sign up to save
+              Save
             </button>
             <button
               type="button"

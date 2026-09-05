@@ -409,7 +409,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
               }}
               className="underline underline-offset-2 hover:text-white"
             >
-              Sign up
+              Save
             </button>
             {' '}to keep it if you leave or switch devices.
           </p>

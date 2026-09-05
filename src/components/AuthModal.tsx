@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Eye, EyeOff, Mail, Info } from 'lucide-react';
 import { signIn, signUp, claimGuestAccount } from '../lib/auth';
+import { markAccountSaved } from '../lib/trial';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -67,6 +68,7 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
       if (mode === 'signin') {
         const { error: err } = await signIn(email, password);
         if (err) throw err;
+        markAccountSaved();
         onSuccess();
       } else {
         const { error: err, data } = mode === 'claim'
@@ -87,8 +89,10 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
           setError('__existing__');
         } else if (data?.session || mode === 'claim') {
           // Guest trial is already signed in — do not block on inbox confirmation.
+          markAccountSaved();
           onSuccess();
         } else {
+          markAccountSaved();
           setConfirmedEmail(email);
           setConfirmSent(true);
         }
@@ -109,7 +113,7 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
     mode === 'signin'
       ? 'Welcome back'
       : mode === 'claim'
-        ? 'Sign up to keep this trial'
+        ? 'Save this trial'
         : 'Create your Skyland Reach account';
 
   return (
@@ -175,7 +179,7 @@ export default function AuthModal({ onClose, onSuccess, initialMode = 'signin' }
               <h2 className="text-[#f5f0e8] font-semibold text-lg mb-1.5">{heading}</h2>
               <p className="font-mono text-[11px] text-[#a0a0a0] leading-relaxed">
                 {mode === 'claim'
-                  ? 'Your 30-day trial is already running on this browser. Email keeps it if you leave or switch devices.'
+                  ? 'Your 30-day trial is already running on this browser. Save it with email if you leave or switch devices.'
                   : SISTER_APPS_LINE}
               </p>
             </div>

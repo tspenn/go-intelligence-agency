@@ -4,7 +4,13 @@ import CommandCenter from './views/CommandCenter';
 import Landing from './views/Landing';
 import { useAuth } from './lib/auth';
 import { MODE } from './lib/appMode';
-import { isGuestSession, shouldAutoStartTrial, startGuestTrial } from './lib/trial';
+import {
+  isGuestTrialExpired,
+  landingGate,
+  rememberSession,
+  shouldAutoStartTrial,
+  startGuestTrial,
+} from './lib/trial';
 
 type Mode = 'agent' | 'command';
 
@@ -28,6 +34,7 @@ export default function App() {
   useEffect(() => {
     if (auth.loading) return;
     if (auth.user) {
+      rememberSession(auth.user);
       setStartingGuest(false);
       return;
     }
@@ -44,16 +51,6 @@ export default function App() {
       }
     });
   }, [auth.loading, auth.user]);
-
-  useEffect(() => {
-    if (!isGuestSession(auth.user)) return;
-    function onLeave(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-    window.addEventListener('beforeunload', onLeave);
-    return () => window.removeEventListener('beforeunload', onLeave);
-  }, [auth.user]);
 
   // Deep-link from notification tap: open Operations Hub when ?mission= is present
   useEffect(() => {
@@ -87,9 +84,9 @@ export default function App() {
     );
   }
 
-  // Landing is only for people who left / signed out. First visit skips it.
-  if (!auth.user) {
-    return <Landing guestError={guestError} />;
+  const gate = landingGate(auth.user);
+  if (!auth.user || isGuestTrialExpired(auth.user)) {
+    return <Landing guestError={guestError} gate={gate} />;
   }
 
   // Authenticated users go straight to the app — landing is never shown.

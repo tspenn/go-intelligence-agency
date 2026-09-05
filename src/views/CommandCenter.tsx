@@ -302,7 +302,7 @@ export default function CommandCenter({
               }}
               className="underline underline-offset-2 hover:text-white"
             >
-              Sign up
+              Save
             </button>
             {' '}to keep it if you leave or switch devices.
           </p>
