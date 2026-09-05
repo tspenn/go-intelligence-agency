@@ -10,10 +10,19 @@ import { supabase, type SecretAgentMission, type SecretAgentAlert, type WatchTyp
 import { signOut } from '../lib/auth';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
+import { GiaAssetsPanel, GiaCommsPanel } from '../components/GiaDesk';
 import type { AuthState } from '../lib/auth';
 import { MODE, isGIA, isSecretAgent } from '../lib/appMode';
 import { isGuestSession, trialDaysRemaining } from '../lib/trial';
 import LeaveWarning from '../components/LeaveWarning';
+import type { GiaAsset, GiaNote } from '../lib/giaDesk';
+import {
+  addGiaNote,
+  clearMissionReports,
+  loadGiaAssets,
+  loadGiaNotes,
+  saveFindingAsAsset,
+} from '../lib/giaDesk';
 
 const WATCH_ICONS: Record<WatchType, typeof Eye> = {
   sale_price: Tag,
@@ -162,12 +171,23 @@ export default function CommandCenter({
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
+  const [deskView, setDeskView] = useState<'board' | 'assets' | 'comms'>('board');
+  const [assets, setAssets] = useState<GiaAsset[]>([]);
+  const [notes, setNotes] = useState<GiaNote[]>([]);
+  const [rowNote, setRowNote] = useState('');
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   const user = auth.user;
 
   function jumpToBoard(tab?: string) {
+    setDeskView('board');
     if (tab) setActiveTab(tab);
+    boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function jumpToDesk(view: 'board' | 'assets' | 'comms') {
+    setDeskView(view);
     boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -182,6 +202,8 @@ export default function CommandCenter({
     } else {
       setMissions([]);
       setAlerts([]);
+      setAssets([]);
+      setNotes([]);
       setLoading(false);
     }
   }, [user]);
@@ -217,7 +239,18 @@ export default function CommandCenter({
     ]);
     if (missionsRes.data) setMissions(missionsRes.data as SecretAgentMission[]);
     if (alertsRes.data) setAlerts(alertsRes.data as SecretAgentAlert[]);
+    if (isGIA) await loadDesk();
     if (!silent) setLoading(false);
+  }
+
+  async function loadDesk() {
+    if (!user) return;
+    const [nextAssets, nextNotes] = await Promise.all([
+      loadGiaAssets(user.id),
+      loadGiaNotes(user.id),
+    ]);
+    setAssets(nextAssets);
+    setNotes(nextNotes);
   }
 
   async function refreshIntel() {
@@ -228,6 +261,31 @@ export default function CommandCenter({
     } finally {
       setRefreshing(false);
     }
+  }
+
+  async function keepFinding(mission: SecretAgentMission, finding: SecretAgentAlert) {
+    if (!user) return;
+    setRowBusy(finding.id);
+    await saveFindingAsAsset(user.id, mission, finding);
+    await loadDesk();
+    setRowBusy(null);
+  }
+
+  async function pinRowNote(mission: SecretAgentMission) {
+    if (!user || !rowNote.trim()) return;
+    setRowBusy(mission.id);
+    const result = await addGiaNote(user.id, rowNote, mission);
+    if (result.ok) setRowNote('');
+    await loadDesk();
+    setRowBusy(null);
+  }
+
+  async function clearReports(mission: SecretAgentMission) {
+    if (!user) return;
+    setRowBusy(`clear-${mission.id}`);
+    await clearMissionReports(user.id, mission.id);
+    await loadData(true);
+    setRowBusy(null);
   }
 
   const utcTime = time.toUTCString().split(' ')[4];
@@ -282,8 +340,26 @@ export default function CommandCenter({
 
           {isGIA ? (
             <nav className="hidden md:flex items-center gap-5 text-sm text-zinc-300">
-              <button type="button" onClick={() => jumpToBoard('missions')} className="hover:text-white transition-colors">
+              <button
+                type="button"
+                onClick={() => jumpToDesk('board')}
+                className={deskView === 'board' ? 'text-white' : 'hover:text-white transition-colors'}
+              >
                 The Board
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpToDesk('assets')}
+                className={deskView === 'assets' ? 'text-white' : 'hover:text-white transition-colors'}
+              >
+                Assets
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpToDesk('comms')}
+                className={deskView === 'comms' ? 'text-white' : 'hover:text-white transition-colors'}
+              >
+                Comms
               </button>
               <button type="button" onClick={onSwitchMode} className="hover:text-white transition-colors">
                 Watch something
@@ -506,6 +582,29 @@ export default function CommandCenter({
         </div>
       </section>
 
+      {isGIA && (
+        <div className="md:hidden border-b border-zinc-800 bg-[#171c20]">
+          <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto">
+            {([
+              { id: 'board', label: 'The Board' },
+              { id: 'assets', label: 'Assets' },
+              { id: 'comms', label: 'Comms' },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => jumpToDesk(item.id)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                  deskView === item.id ? 'bg-zinc-700 text-white' : 'text-zinc-400'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <section className="border-b border-zinc-800 bg-zinc-900/30">
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -536,8 +635,18 @@ export default function CommandCenter({
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Missions panel */}
-        <div ref={boardRef} className={`lg:col-span-2 rounded-2xl overflow-hidden border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+        {/* Missions panel / Assets / Comms */}
+        <div ref={boardRef} className={`lg:col-span-2 ${isGIA && deskView !== 'board' ? '' : `rounded-2xl overflow-hidden border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}`}>
+        {isGIA && deskView === 'assets' && user ? (
+          <GiaAssetsPanel userId={user.id} assets={assets} missions={missions} onChange={() => void loadDesk()} />
+        ) : isGIA && deskView === 'comms' && user ? (
+          <GiaCommsPanel userId={user.id} notes={notes} missions={missions} onChange={() => void loadDesk()} />
+        ) : isGIA && (deskView === 'assets' || deskView === 'comms') && !user ? (
+          <div className="bg-[#1e262c] border border-[#4a5f56] rounded-2xl p-6 text-center">
+            <p className="text-sm text-zinc-300">Sign in to use this drawer.</p>
+          </div>
+        ) : (
+          <>
           <div className={`border-b px-6 py-4 ${isGIA ? 'border-[#4a5f56]' : 'border-zinc-800'}`}>
             {isGIA && (
               <div className="mb-3">
@@ -630,7 +739,10 @@ export default function CommandCenter({
                   <div key={m.id} className={`divide-y ${isGIA ? 'divide-[#4a5f56]/40' : 'divide-zinc-800/40'}`}>
                     <div
                       className={`px-6 py-4 flex items-start gap-4 transition-colors duration-150 group cursor-pointer ${isGIA ? 'hover:bg-[#243038]' : 'hover:bg-zinc-800/30'}`}
-                      onClick={() => setExpandedMissionId(expanded ? null : m.id)}
+                      onClick={() => {
+                        setExpandedMissionId(expanded ? null : m.id);
+                        if (!expanded) setRowNote('');
+                      }}
                     >
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-2 ${hasAlert ? 'bg-amber-500 animate-pulse' : m.active ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
                       <Icon size={14} className={`flex-shrink-0 mt-1.5 ${isGIA ? 'text-emerald-400' : 'text-zinc-500'}`} />
@@ -694,37 +806,95 @@ export default function CommandCenter({
                       )}
                     </div>
                     {expanded && (
-                      <div className={`px-6 pb-4 pt-2 ${isGIA ? 'bg-[#171c20]' : 'bg-zinc-900/40'}`}>
+                      <div
+                        className={`px-6 pb-4 pt-2 ${isGIA ? 'bg-[#171c20]' : 'bg-zinc-900/40'}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {missionFindings.length === 0 ? (
                           <p className="text-sm text-zinc-300">
                             No hits yet. The last reading still stays on this row after each hourly check.
                           </p>
                         ) : (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-3">
                             {missionFindings.map((finding, index) => {
                               const findingUrl = getFindingOpenUrl(finding, openUrl, index === 0);
+                              const kept = assets.some((asset) => asset.alert_id === finding.id);
                               return (
-                                <div key={finding.id}>
-                                  {findingUrl ? (
-                                    <a
-                                      href={findingUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="text-sm text-emerald-300 underline underline-offset-2 inline-flex items-start gap-1"
+                                <div key={finding.id} className="flex items-start gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    {findingUrl ? (
+                                      <a
+                                        href={findingUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-emerald-300 underline underline-offset-2 inline-flex items-start gap-1"
+                                      >
+                                        <span>{finding.message}</span>
+                                        <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
+                                      </a>
+                                    ) : (
+                                      <p className="text-sm text-zinc-200">{finding.message}</p>
+                                    )}
+                                    <p className="text-[12px] text-zinc-400 mt-0.5">
+                                      {new Date(finding.triggered_at).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  {isGIA && user && (
+                                    <button
+                                      type="button"
+                                      disabled={kept || rowBusy === finding.id}
+                                      onClick={() => void keepFinding(m, finding)}
+                                      className="flex-shrink-0 text-[11px] font-mono uppercase tracking-widest text-emerald-300 hover:text-white disabled:text-zinc-500"
                                     >
-                                      <span>{finding.message}</span>
-                                      <ExternalLink size={10} className="flex-shrink-0 mt-0.5" />
-                                    </a>
-                                  ) : (
-                                    <p className="text-sm text-zinc-200">{finding.message}</p>
+                                      {kept ? 'Kept' : 'Keep'}
+                                    </button>
                                   )}
-                                  <p className="text-[12px] text-zinc-400 mt-0.5">
-                                    {new Date(finding.triggered_at).toLocaleString()}
-                                  </p>
                                 </div>
                               );
                             })}
+                          </div>
+                        )}
+                        {isGIA && user && (
+                          <div className="mt-4 pt-3 border-t border-[#4a5f56]/50">
+                            <p className="text-[11px] font-mono uppercase tracking-widest text-emerald-300 mb-2">
+                              Note under {m.target}
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <input
+                                value={expanded ? rowNote : ''}
+                                onChange={(e) => setRowNote(e.target.value)}
+                                placeholder="Call Fred. Buy on Monday…"
+                                className="gia-field flex-1"
+                              />
+                              <button
+                                type="button"
+                                disabled={!rowNote.trim() || rowBusy === m.id}
+                                onClick={() => void pinRowNote(m)}
+                                className="text-[11px] font-mono uppercase tracking-widest text-emerald-300 hover:text-white border border-[#4a5f56] px-3 py-2 rounded"
+                              >
+                                Pin it
+                              </button>
+                            </div>
+                            {notes.some((note) => note.mission_id === m.id) && (
+                              <button
+                                type="button"
+                                onClick={() => jumpToDesk('comms')}
+                                className="mt-2 text-[12px] text-zinc-400 hover:text-white"
+                              >
+                                {notes.filter((note) => note.mission_id === m.id).length} note
+                                {notes.filter((note) => note.mission_id === m.id).length === 1 ? '' : 's'} in Comms
+                              </button>
+                            )}
+                            {missionFindings.length > 0 && (
+                              <button
+                                type="button"
+                                disabled={rowBusy === `clear-${m.id}`}
+                                onClick={() => void clearReports(m)}
+                                className="mt-3 block text-[11px] font-mono uppercase tracking-widest text-zinc-400 hover:text-amber-300"
+                              >
+                                Clear reports on this row
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -746,6 +916,8 @@ export default function CommandCenter({
               Refresh
             </button>
           </div>
+          </>
+        )}
         </div>
 
         {/* Right column */}
@@ -805,6 +977,12 @@ export default function CommandCenter({
               {[
                 { label: isGIA ? 'Deploy Operative' : 'New Mission', icon: Target, action: onSwitchMode },
                 { label: isGIA ? 'Reports' : 'Intel Log', icon: FileText, action: () => (isGIA ? jumpToBoard('fired') : setActiveTab('all')) },
+                ...(isGIA
+                  ? [
+                      { label: 'Assets', icon: FolderOpen, action: () => jumpToDesk('assets') },
+                      { label: 'Comms', icon: Radio, action: () => jumpToDesk('comms') },
+                    ]
+                  : []),
               ].map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}
