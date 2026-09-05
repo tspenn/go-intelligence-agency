@@ -341,9 +341,13 @@ export default function CommandCenter({
             </h1>
             <p className={`text-lg leading-relaxed max-w-lg mb-8 ${isGIA ? 'text-zinc-100' : 'text-zinc-400'}`}>
               {user
-                ? `${activeMissions.length} active mission${activeMissions.length !== 1 ? 's' : ''} running${isGIA ? ' — unlimited capacity' : ''}. Your agents are watching silently in the background.`
+                ? isGIA
+                  ? activeMissions.length === 0
+                    ? 'Your desk is empty. Deploy operatives and this hub becomes the board they report to.'
+                    : `${activeMissions.length} operative${activeMissions.length !== 1 ? 's' : ''} on the board. This hub is where every signal lands.`
+                  : `${activeMissions.length} active mission${activeMissions.length !== 1 ? 's' : ''} running. Your agents are watching silently in the background.`
                 : isGIA
-                  ? 'Sign in to deploy unlimited missions, run hourly checks, and command your operations from one encrypted dashboard.'
+                  ? 'One hub for every signal you care about — not a single watch.'
                   : 'Sign in to view your missions, check intel, and receive alerts when conditions are met.'
               }
             </p>
@@ -368,9 +372,10 @@ export default function CommandCenter({
               </div>
               {isGIA && (
                 <p className="text-sm text-zinc-100/90 leading-relaxed max-w-lg">
-                  GIA watches things for you. You name a stock, a competitor page, a news topic,
-                  or a storm. We check it every hour. When it changes, we ping this device.
-                  That is the whole product — a personal watch, not another dashboard to babysit.
+                  This is a desk, not a single watch. Deploy operatives across markets, restocks,
+                  scores, competitor pages, weather, and news. Group them into portfolios. GIA
+                  checks the whole board every hour and briefs you here — and on this device —
+                  when a piece moves.
                 </p>
               )}
             </div>
