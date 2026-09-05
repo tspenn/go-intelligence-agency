@@ -3,21 +3,10 @@ import { supabase } from './supabase';
 
 const SKIP_AUTOSTART_KEY = 'gia_skip_autostart';
 
-/** True when this visit came from a share, ad, or explicit trial link. */
+/** First visit starts a guest trial. Landing only after they leave / sign out. */
 export function shouldAutoStartTrial(): boolean {
   if (typeof window === 'undefined') return false;
-  if (localStorage.getItem(SKIP_AUTOSTART_KEY) === '1') return false;
-
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('trial') === '1' || params.get('share') === '1') return true;
-
-  const ref = document.referrer;
-  if (!ref) return false;
-  try {
-    return new URL(ref).origin !== window.location.origin;
-  } catch {
-    return false;
-  }
+  return localStorage.getItem(SKIP_AUTOSTART_KEY) !== '1';
 }
 
 export function markSignedOut() {
@@ -48,14 +37,13 @@ export function trialDaysRemaining(user: User | null): number | null {
 
 export async function startGuestTrial(): Promise<{ ok: true } | { ok: false; error: string }> {
   clearSignedOutSkip();
-  const { data, error } = await supabase.auth.signInAnonymously();
+  const { data, error } = await supabase.auth.signInAnonymously({
+    options: { data: { signup_app: 'gia' } },
+  });
   if (error || !data.user) {
     return {
       ok: false,
-      error:
-        error?.message?.includes('Anonymous')
-          ? 'Guest trial is not enabled on this project yet. Enable Anonymous sign-ins in Supabase Auth.'
-          : error?.message || 'Could not start your trial.',
+      error: error?.message || 'Could not start your trial. Refresh and try again.',
     };
   }
 

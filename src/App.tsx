@@ -17,15 +17,31 @@ export default function App() {
   });
   const auth = useAuth();
   const [guestError, setGuestError] = useState<string | null>(null);
+  const [startingGuest, setStartingGuest] = useState(
+    () => typeof window !== 'undefined' && shouldAutoStartTrial(),
+  );
 
   useEffect(() => {
     document.title = MODE.documentTitle;
   }, []);
 
   useEffect(() => {
-    if (auth.loading || auth.user || !shouldAutoStartTrial()) return;
+    if (auth.loading) return;
+    if (auth.user) {
+      setStartingGuest(false);
+      return;
+    }
+    if (!shouldAutoStartTrial()) {
+      setStartingGuest(false);
+      return;
+    }
+
+    setStartingGuest(true);
     void startGuestTrial().then((result) => {
-      if (!result.ok) setGuestError(result.error);
+      if (!result.ok) {
+        setGuestError(result.error);
+        setStartingGuest(false);
+      }
     });
   }, [auth.loading, auth.user]);
 
@@ -58,20 +74,20 @@ export default function App() {
     return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
   }, []);
 
-  if (auth.loading) {
+  if (auth.loading || startingGuest) {
     return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+      <div className="min-h-screen bg-[#080a0c] flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <span className="pulse-dot" />
+          <span className="pulse-dot pulse-dot-emerald" />
           <span className="font-mono text-xs text-[#a0a0a0] tracking-widest uppercase">
-            Establishing secure connection...
+            Starting your operations hub...
           </span>
         </div>
       </div>
     );
   }
 
-  // Unauthenticated users see the landing page — share/ad visits auto-start a guest trial above.
+  // Landing is only for people who left / signed out. First visit skips it.
   if (!auth.user) {
     return <Landing guestError={guestError} />;
   }
