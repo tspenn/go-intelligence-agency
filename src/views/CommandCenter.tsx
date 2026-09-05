@@ -347,22 +347,31 @@ export default function CommandCenter({
                   : 'Sign in to view your missions, check intel, and receive alerts when conditions are met.'
               }
             </p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={onSwitchMode}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95"
-              >
-                {isGIA ? 'Deploy Operative' : 'New Mission'}
-                <ArrowRight size={15} />
-              </button>
-              {!user && (
+            <div className="flex flex-col items-start gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 active:scale-95"
+                  onClick={onSwitchMode}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95"
                 >
-                  <Lock size={15} />
-                  Sign In
+                  {isGIA ? 'Deploy Operative' : 'New Mission'}
+                  <ArrowRight size={15} />
                 </button>
+                {!user && (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="flex items-center gap-2 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 active:scale-95"
+                  >
+                    <Lock size={15} />
+                    Sign In
+                  </button>
+                )}
+              </div>
+              {isGIA && (
+                <p className="text-sm text-zinc-100/90 leading-relaxed max-w-lg">
+                  GIA watches things for you. You name a stock, a competitor page, a news topic,
+                  or a storm. We check it every hour. When it changes, we ping this device.
+                  That is the whole product — a personal watch, not another dashboard to babysit.
+                </p>
               )}
             </div>
           </div>

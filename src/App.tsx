@@ -14,13 +14,30 @@ import {
 
 type Mode = 'agent' | 'command';
 
+function viewFromUrl(): Mode {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('mission') || params.get('view') === 'command') return 'command';
+  if (params.get('view') === 'agent') return 'agent';
+  return MODE.defaultView;
+}
+
+function writeViewToUrl(next: Mode, replace: boolean) {
+  const url = new URL(window.location.href);
+  if (next === 'agent') url.searchParams.set('view', 'agent');
+  else url.searchParams.set('view', 'command');
+  url.searchParams.delete('trial');
+  if (replace) window.history.replaceState({ view: next }, '', url);
+  else window.history.pushState({ view: next }, '', url);
+}
+
 export default function App() {
-  const [mode, setMode] = useState<Mode>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mission') || params.get('view') === 'command') return 'command';
-    if (params.get('view') === 'agent') return 'agent';
-    return MODE.defaultView;
-  });
+  const [mode, setMode] = useState<Mode>(() => viewFromUrl());
+
+  function goToView(next: Mode) {
+    if (next === mode) return;
+    writeViewToUrl(next, false);
+    setMode(next);
+  }
   const auth = useAuth();
   const [guestError, setGuestError] = useState<string | null>(null);
   const [startingGuest, setStartingGuest] = useState(
@@ -29,6 +46,15 @@ export default function App() {
 
   useEffect(() => {
     document.title = MODE.documentTitle;
+    writeViewToUrl(viewFromUrl(), true);
+  }, []);
+
+  useEffect(() => {
+    function onPop() {
+      setMode(viewFromUrl());
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   useEffect(() => {
@@ -56,6 +82,7 @@ export default function App() {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.data?.type === 'MISSION_ALERT') {
+        writeViewToUrl('command', true);
         setMode('command');
         const url = event.data.url;
         if (
@@ -91,6 +118,6 @@ export default function App() {
 
   // Authenticated users go straight to the app — landing is never shown.
   return mode === 'agent'
-    ? <SecretAgent auth={auth} onSwitchMode={() => setMode('command')} />
-    : <CommandCenter auth={auth} onSwitchMode={() => setMode('agent')} />;
+    ? <SecretAgent auth={auth} onSwitchMode={() => goToView('command')} />
+    : <CommandCenter auth={auth} onSwitchMode={() => goToView('agent')} />;
 }
