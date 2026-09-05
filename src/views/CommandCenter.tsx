@@ -477,7 +477,7 @@ export default function CommandCenter({
           </>
         )}
         <div className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-start md:items-center gap-10 w-full">
-          <div className={isGIA ? 'flex-1 max-w-xl rounded-sm bg-black/40 px-5 py-6 md:px-7 md:py-7' : 'flex-1'}>
+          <div className={isGIA ? 'flex-1 max-w-xl rounded-2xl bg-zinc-900/60 border border-zinc-800 px-5 py-6 md:px-7 md:py-7 backdrop-blur-sm' : 'flex-1'}>
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {isGIA
