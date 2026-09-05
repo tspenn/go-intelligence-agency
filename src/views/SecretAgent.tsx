@@ -52,6 +52,7 @@ const GIA_WATCH_OPTIONS: WatchOption[] = [
   { boardId: 'weather', value: 'severe_weather', label: 'Weather', sublabel: 'City or US zip', icon: Cloud, placeholder: { target: '28677', condition: 'any severe warning' } },
   { boardId: 'seismic', value: 'earthquake', label: 'Seismic', sublabel: 'Earthquake alerts', icon: Activity, placeholder: { target: 'Pacific Northwest', condition: 'magnitude above 5.0' } },
   { boardId: 'environment', value: 'air_quality', label: 'Environment', sublabel: 'AQI monitoring', icon: Wind, placeholder: { target: 'Houston, TX', condition: 'AQI above 150' } },
+  { boardId: 'other', value: 'news_keyword', label: 'Other', sublabel: 'Anything else — a topic or a URL', icon: Eye, placeholder: { target: 'A topic, name, or https://…', condition: 'any new mention or change' }, metadata: { category: 'other' } },
 ];
 
 const WATCH_ICONS: Record<WatchType, typeof Eye> = {
@@ -75,6 +76,11 @@ const WATCH_STATUS: Record<WatchType, string> = {
 
 const TICKER_TEXT =
   '[ SYSTEM SECURE ] · ALL AGENTS ACTIVE · WATCHING THE GRID · NO ANOMALIES DETECTED · CHANNEL ENCRYPTED · STANDING BY · ';
+
+function resolveWatchType(option: WatchOption, target: string): WatchType {
+  if (option.boardId !== 'other') return option.value;
+  return /^https?:\/\//i.test(target.trim()) ? 'website_change' : 'news_keyword';
+}
 
 function operativeCodename(): string {
   const adj = ['BLUE', 'GOLDEN', 'SILENT', 'IRON', 'CRIMSON', 'AMBER', 'SILVER', 'DARK', 'SWIFT', 'HOLLOW'];
@@ -243,7 +249,7 @@ export default function SecretAgent({ auth, onSwitchMode }: { auth: AuthState; o
   const MISSION_LIMIT = MODE.missionLimit;
   const watchOptions = isGIA ? GIA_WATCH_OPTIONS : SA_WATCH_OPTIONS;
   const selectedOption = watchOptions.find((o) => o.boardId === boardId) ?? watchOptions[0];
-  const watchType = selectedOption.value;
+  const watchType = resolveWatchType(selectedOption, target);
 
   useEffect(() => {
     if (user) {
@@ -693,7 +699,18 @@ function GIAView({
   setShowSettingsModal, setShowPortfolioView, onLeave,
   loadMissions, refreshIntel, refreshing, selectedOption, MISSION_LIMIT,
 }: GIAViewProps) {
+  const [typeOpen, setTypeOpen] = useState(false);
+  const typeRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    function onDoc(event: MouseEvent) {
+      if (!typeRef.current?.contains(event.target as Node)) setTypeOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  const SelectedIcon = selectedOption.icon;
   const tierLimits = GIA_TIER_LIMITS[userTier] ?? GIA_TIER_LIMITS.operative;
   const activeMissions = missions.filter((m) => m.active);
   const portfolioNames = [...new Set(activeMissions.map((m) => m.portfolio_name).filter(Boolean))];
@@ -711,7 +728,7 @@ function GIAView({
   }, {});
 
   return (
-    <div className="min-h-screen bg-[#0d0f12] text-[#f5f0e8] flex flex-col font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#171c20] text-[#f5f0e8] flex flex-col font-['DM_Sans',sans-serif]">
 
       {/* Header */}
       <header className="border-b border-[#1a2a20] px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full">
@@ -721,20 +738,20 @@ function GIAView({
             <span className="font-mono font-bold text-sm tracking-[0.3em] uppercase text-white">
               GO INTELLIGENCE AGENCY
             </span>
-            <span className="block font-mono text-[11px] text-emerald-500/60 tracking-[0.2em] uppercase mt-0.5">
+            <span className="block font-mono text-[11px] text-emerald-400/80 tracking-[0.2em] uppercase mt-0.5">
               Intel. When you need it.
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onSwitchMode} className="text-[11px] font-mono uppercase tracking-widest text-emerald-500/60 hover:text-emerald-400 transition-colors border border-[#1a3325] hover:border-emerald-500/40 px-3 py-1.5 rounded-sm">
+          <button onClick={onSwitchMode} className="text-[11px] font-mono uppercase tracking-widest text-emerald-300 hover:text-emerald-200 transition-colors border border-[#2a4a38] hover:border-emerald-500/40 px-3 py-1.5 rounded-sm">
             Operations Hub
           </button>
           {user && (
             <button
               onClick={() => setShowPortfolioView(true)}
               title="Manage portfolios"
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#2a4a38] hover:border-emerald-500/40 transition-colors text-[#aaa] hover:text-emerald-400"
             >
               <FolderKanban size={13} />
             </button>
@@ -745,7 +762,7 @@ function GIAView({
               onClick={() => void refreshIntel()}
               disabled={refreshing}
               title="Refresh"
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400 disabled:opacity-40"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#2a4a38] hover:border-emerald-500/40 transition-colors text-[#aaa] hover:text-emerald-400 disabled:opacity-40"
             >
               <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
             </button>
@@ -754,7 +771,7 @@ function GIAView({
             <button
               onClick={() => setShowSettingsModal(true)}
               title="Settings"
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-emerald-500/40 transition-colors text-[#666] hover:text-emerald-400"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-[#2a4a38] hover:border-emerald-500/40 transition-colors text-[#aaa] hover:text-emerald-400"
             >
               <Settings size={13} />
             </button>
@@ -762,7 +779,7 @@ function GIAView({
           {user ? (
             <div className="flex items-center gap-2">
               <span className="hidden sm:block font-mono text-[11px] text-[#888] max-w-[140px] truncate">{user.email}</span>
-              <button onClick={onLeave} title={user.email ? 'Sign out' : 'Leave'} className="w-8 h-8 flex items-center justify-center rounded-full border border-[#1a3325] hover:border-red-500/40 transition-colors text-[#666] hover:text-red-400">
+              <button onClick={onLeave} title={user.email ? 'Sign out' : 'Leave'} className="w-8 h-8 flex items-center justify-center rounded-full border border-[#2a4a38] hover:border-red-500/40 transition-colors text-[#aaa] hover:text-red-400">
                 <LogOut size={13} />
               </button>
             </div>
@@ -779,109 +796,122 @@ function GIAView({
 
           {/* ─── Deploy Form ─────────────────────────────────── */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-px flex-1 bg-[#1a3325]" />
-              <span className="font-mono text-[11px] text-emerald-500/60 tracking-[0.25em] uppercase">
-                Deploy Operative
-              </span>
-              <div className="h-px flex-1 bg-[#1a3325]" />
-            </div>
-
-            {/* Intelligence type card grid */}
-            <div className="mb-5">
-              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-3">
-                Intelligence Type
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {GIA_WATCH_OPTIONS.map(({ boardId: id, label, sublabel, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => setBoardId(id)}
-                    className={`flex items-start gap-2.5 p-3 rounded border text-left transition-all ${
-                      boardId === id
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                        : 'border-[#1e2e24] bg-[#111418] text-[#888] hover:border-[#2a4030] hover:text-[#c0c0c0]'
-                    }`}
-                  >
-                    <Icon size={14} className="flex-shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[13px] leading-tight">{label}</p>
-                      <p className="font-mono text-[10px] opacity-60 mt-0.5">{sublabel}</p>
-                    </div>
-                  </button>
-                ))}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-px flex-1 bg-[#2a4a38]" />
+                <span className="font-mono text-[11px] text-emerald-400 tracking-[0.25em] uppercase">
+                  Deploy Operative
+                </span>
+                <div className="h-px flex-1 bg-[#2a4a38]" />
               </div>
+              <h2 className="text-xl font-semibold text-white tracking-tight">
+                What do you need an agent to watch?
+              </h2>
+              <p className="mt-1.5 text-sm text-[#c5d0ca] leading-relaxed">
+                Pick what you are watching, then say when to brief you.
+              </p>
             </div>
 
-            {/* Target */}
+            <div className="mb-5" ref={typeRef}>
+              <label className="gia-label">What are you watching?</label>
+              <button
+                type="button"
+                onClick={() => setTypeOpen((open) => !open)}
+                className="gia-field flex items-center gap-3 text-left"
+              >
+                <SelectedIcon size={16} className="text-emerald-400 flex-shrink-0" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[#f5f0e8]">{selectedOption.label}</span>
+                  <span className="block font-mono text-[11px] text-[#8b9a93]">{selectedOption.sublabel}</span>
+                </span>
+                <ChevronDown size={16} className={`text-[#8b9a93] flex-shrink-0 transition-transform ${typeOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {typeOpen && (
+                <div className="mt-1.5 max-h-72 overflow-y-auto rounded-sm border border-[#4a5f56] bg-[#1c252b] shadow-xl">
+                  {GIA_WATCH_OPTIONS.map(({ boardId: id, label, sublabel, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setBoardId(id);
+                        setTypeOpen(false);
+                      }}
+                      className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${
+                        boardId === id
+                          ? 'bg-emerald-500/15 text-emerald-200'
+                          : 'text-[#e8eee9] hover:bg-[#243038]'
+                      }`}
+                    >
+                      <Icon size={14} className="flex-shrink-0 mt-0.5" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{label}</span>
+                        <span className="block font-mono text-[11px] text-[#8b9a93]">{sublabel}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mb-4">
-              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-2">
-                Target Asset
-              </label>
+              <label className="gia-label">Target</label>
               <input
                 type="text"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder={selectedOption.placeholder.target}
-                className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm px-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
+                className="gia-field"
               />
             </div>
 
-            {/* Threshold */}
             <div className="mb-4">
-              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-2">
-                Alert Threshold
-              </label>
+              <label className="gia-label">When should we brief you?</label>
               <input
                 type="text"
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
                 placeholder={selectedOption.placeholder.condition}
-                className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm px-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
+                className="gia-field"
                 onKeyDown={(e) => e.key === 'Enter' && activateMission()}
               />
             </div>
 
-            {/* Portfolio */}
             <div className="mb-6">
-              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-2">
-                Portfolio <span className="text-[#555] normal-case tracking-normal font-normal">— optional</span>
+              <label className="gia-label">
+                Portfolio <span className="text-[#8b9a93] normal-case tracking-normal font-normal">— optional</span>
               </label>
               <div className="relative">
-                <FolderOpen size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <FolderOpen size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b9a93]" />
                 <input
                   type="text"
                   value={portfolioName}
                   onChange={(e) => setPortfolioName(e.target.value)}
                   placeholder="Tech Sector Watch, Competitor Intel..."
-                  className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm pl-9 pr-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
+                  className="gia-field !pl-9"
                 />
               </div>
             </div>
 
-            {/* Notification preferences */}
             <div className="mb-6">
-              <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-3">
-                If this happens, notify me via
-              </label>
+              <label className="gia-label">If this happens, notify me via</label>
               <button
                 type="button"
                 onClick={() => setNotifyPush(!notifyPush)}
                 className={`flex items-center gap-2 px-4 py-2 rounded border font-mono text-[12px] tracking-wide transition-all ${
                   notifyPush
-                    ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                    : 'border-[#1e2e24] bg-[#111418] text-[#555] hover:border-[#2a4030] hover:text-[#888]'
+                    ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200'
+                    : 'border-[#4a5f56] bg-[#1c252b] text-[#c5d0ca] hover:border-emerald-500/50'
                 }`}
               >
                 <Bell size={12} />
                 Notifications
               </button>
-              <p className="font-mono text-[10px] text-[#555] mt-2 leading-relaxed">
+              <p className="font-mono text-[11px] text-[#8b9a93] mt-2 leading-relaxed">
                 Push alert to devices where you have notifications turned on.{' '}
                 <button
                   type="button"
                   onClick={() => setShowSettingsModal(true)}
-                  className="underline hover:text-[#888] transition-colors"
+                  className="underline hover:text-[#c5d0ca] transition-colors"
                 >
                   Manage in Settings
                 </button>
@@ -891,21 +921,21 @@ function GIAView({
             {/* Webhook URL (Agency tier only) */}
             {userTier === 'agency' && (
               <div className="mb-6">
-                <label className="font-mono text-[11px] text-[#888] tracking-[0.2em] uppercase block mb-2">
+                <label className="gia-label">
                   Webhook URL{' '}
-                  <span className="text-[#555] normal-case tracking-normal font-normal">— optional, Agency</span>
+                  <span className="text-[#8b9a93] normal-case tracking-normal font-normal">— optional, Agency</span>
                 </label>
                 <div className="relative">
-                  <Webhook size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                  <Webhook size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b9a93]" />
                   <input
                     type="url"
                     value={webhookUrl}
                     onChange={(e) => setWebhookUrl(e.target.value)}
                     placeholder="https://hooks.zapier.com/..."
-                    className="w-full bg-[#0a0e10] border border-[#1e2e24] rounded-sm pl-9 pr-4 py-3 text-[#f5f0e8] font-mono text-sm focus:outline-none focus:border-emerald-500/40 transition-colors placeholder-[#333]"
+                    className="gia-field !pl-9"
                   />
                 </div>
-                <p className="font-mono text-[10px] text-[#555] mt-1.5">GIA will POST the alert payload to this URL when the condition fires.</p>
+                <p className="font-mono text-[11px] text-[#8b9a93] mt-1.5">GIA will POST the alert payload to this URL when the condition fires.</p>
               </div>
             )}
 
@@ -962,7 +992,7 @@ function GIAView({
           <div className="lg:col-span-3">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px flex-1 bg-[#1a3325]" />
-              <span className="font-mono text-[11px] text-emerald-500/60 tracking-[0.25em] uppercase">
+              <span className="font-mono text-[11px] text-emerald-400 tracking-[0.25em] uppercase">
                 Active Operations
               </span>
               <span className="font-mono text-[11px] text-emerald-400/50">{missions.length} deployed{isFinite(MISSION_LIMIT) && ` · ${Math.max(0, MISSION_LIMIT - missions.length)} remaining`}</span>
@@ -971,8 +1001,8 @@ function GIAView({
 
             {missions.length === 0 ? (
               <div className="text-center py-16 border border-dashed border-[#1a2a20] rounded-sm">
-                <p className="font-mono text-[12px] text-[#444] tracking-widest uppercase">No operatives deployed</p>
-                <p className="font-mono text-[11px] text-[#333] mt-1">Configure and deploy your first operative.</p>
+                <p className="font-mono text-[12px] text-[#c5d0ca] tracking-widest uppercase">No operatives deployed</p>
+                <p className="font-mono text-[11px] text-[#8b9a93] mt-1">Tell us what to watch, then deploy.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-6">
@@ -1031,8 +1061,8 @@ function GIAView({
       </main>
 
       {/* GIA footer ticker */}
-      <div className="overflow-hidden border-t border-[#1a2a20] bg-[#080a0c] py-2">
-        <div className="cc-ticker inline-flex gap-16 text-xs font-mono text-emerald-500/30 tracking-widest uppercase">
+      <div className="overflow-hidden border-t border-[#2a4a38] bg-[#14191d] py-2">
+        <div className="cc-ticker inline-flex gap-16 text-xs font-mono text-emerald-400/70 tracking-widest uppercase">
           {['SECURE LINE ESTABLISHED', 'ALL OPERATIVES ACTIVE', 'DATA FEEDS NOMINAL', 'NO UNAUTHORIZED ACCESS', 'ENCRYPTED CHANNEL ACTIVE', 'HOURLY CHECKS RUNNING',
             'SECURE LINE ESTABLISHED', 'ALL OPERATIVES ACTIVE', 'DATA FEEDS NOMINAL', 'NO UNAUTHORIZED ACCESS', 'ENCRYPTED CHANNEL ACTIVE', 'HOURLY CHECKS RUNNING',
           ].map((item, i) => (

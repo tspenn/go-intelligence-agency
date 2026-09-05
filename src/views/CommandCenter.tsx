@@ -40,8 +40,8 @@ const TICKER_ITEMS = [
 function Ticker() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
   return (
-    <div className="overflow-hidden whitespace-nowrap border-y border-zinc-800 py-2 bg-zinc-950">
-      <div className="cc-ticker inline-flex gap-16 text-xs font-mono text-zinc-500 tracking-widest uppercase">
+    <div className="overflow-hidden whitespace-nowrap border-y border-zinc-700 py-2 bg-[#1c2228]">
+      <div className="cc-ticker inline-flex gap-16 text-xs font-mono text-zinc-400 tracking-widest uppercase">
         {items.map((item, i) => (
           <span key={i} className="flex items-center gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
@@ -198,10 +198,10 @@ export default function CommandCenter({
       : missions;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-['Inter',sans-serif] flex flex-col">
+    <div className={`min-h-screen text-zinc-100 font-['Inter',sans-serif] flex flex-col ${isGIA ? 'bg-[#171c20]' : 'bg-zinc-950'}`}>
 
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-sm sticky top-0 z-50">
+      <header className={`border-b border-zinc-800 backdrop-blur-sm sticky top-0 z-50 ${isGIA ? 'bg-[#171c20]/95' : 'bg-zinc-950/95'}`}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-900 border border-zinc-700 flex items-center justify-center">
@@ -211,7 +211,7 @@ export default function CommandCenter({
               <span className="font-['Space_Grotesk',sans-serif] font-bold text-base tracking-tight text-white">
                 {isGIA ? 'GIA' : 'MY SECRET AGENT'}
               </span>
-              <span className="ml-2 text-[12px] font-mono text-zinc-600 tracking-widest uppercase">
+              <span className="ml-2 text-[12px] font-mono text-zinc-400 tracking-widest uppercase">
                 {isGIA ? 'OPS HUB' : 'GIA'}
               </span>
             </div>
@@ -230,9 +230,9 @@ export default function CommandCenter({
           <div className="flex items-center gap-4">
             <button
               onClick={onSwitchMode}
-              className="text-[12px] font-mono uppercase tracking-widest text-zinc-600 hover:text-emerald-400 transition-colors duration-150 border border-zinc-800 hover:border-emerald-500/30 px-2.5 py-1.5 rounded"
+              className="text-[12px] font-mono uppercase tracking-widest text-zinc-400 hover:text-emerald-400 transition-colors duration-150 border border-zinc-700 hover:border-emerald-500/30 px-2.5 py-1.5 rounded"
             >
-              Agent Brief
+              {isGIA ? 'Deploy Operative' : 'Agent Brief'}
             </button>
             <div className="text-right hidden sm:block">
               <p className="text-xs font-mono text-zinc-400">{utcTime} UTC</p>
@@ -352,7 +352,7 @@ export default function CommandCenter({
                 onClick={onSwitchMode}
                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95"
               >
-                New Mission
+                {isGIA ? 'Deploy Operative' : 'New Mission'}
                 <ArrowRight size={15} />
               </button>
               {!user && (
@@ -370,7 +370,7 @@ export default function CommandCenter({
           {/* Live clock card */}
           <div className="w-full md:w-64 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 backdrop-blur-sm flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Mission Clock</span>
+              <span className="text-xs font-mono text-zinc-400 uppercase tracking-widest">Mission Clock</span>
               <Zap size={13} className="text-emerald-400" />
             </div>
             <p className="font-mono text-3xl font-light text-white tracking-widest mb-1">{utcTime}</p>
@@ -434,7 +434,7 @@ export default function CommandCenter({
               }`}>
                 {value}
               </p>
-              <p className="text-xs text-zinc-500 uppercase tracking-wider">{label}</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider">{label}</p>
             </div>
           ))}
         </div>
@@ -452,7 +452,7 @@ export default function CommandCenter({
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors duration-150 ${
-                    activeTab === tab ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'
+                    activeTab === tab ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   {tab}
@@ -463,7 +463,7 @@ export default function CommandCenter({
               onClick={onSwitchMode}
               className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
             >
-              New Mission
+              {isGIA ? 'Deploy Operative' : 'New Mission'}
               <ChevronRight size={13} />
             </button>
           </div>
@@ -486,7 +486,7 @@ export default function CommandCenter({
             </div>
           ) : tabMissions.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-xs font-mono text-zinc-600 tracking-widest uppercase">No missions in this view</p>
+              <p className="text-xs font-mono text-zinc-400 tracking-widest uppercase">No missions in this view</p>
               <button
                 onClick={onSwitchMode}
                 className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-mono"
@@ -708,7 +708,7 @@ export default function CommandCenter({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-800 bg-zinc-950">
+      <footer className={`border-t border-zinc-800 ${isGIA ? 'bg-[#14191d]' : 'bg-zinc-950'}`}>
         <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Shield size={13} className="text-zinc-600" />

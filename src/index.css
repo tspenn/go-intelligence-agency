@@ -161,6 +161,35 @@
   100% { transform: translateX(-50%); }
 }
 
+/* ─── GIA form fields: readable on dark, not black-on-black ── */
+.gia-field {
+  width: 100%;
+  background: #1c252b;
+  border: 1px solid #4a5f56;
+  border-radius: 3px;
+  padding: 0.75rem 1rem;
+  color: #f5f0e8;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease;
+}
+.gia-field::placeholder {
+  color: #8b9a93;
+}
+.gia-field:focus {
+  outline: none;
+  border-color: #34d399;
+}
+.gia-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c5d0ca;
+}
+
 /* ─── Command Center: scrolling ticker ───────────── */
 .cc-ticker {
   animation: cc-scroll 30s linear infinite;
