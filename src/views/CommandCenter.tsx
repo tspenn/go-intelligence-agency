@@ -350,8 +350,8 @@ export default function CommandCenter({
               {user
                 ? isGIA
                   ? activeMissions.length === 0
-                    ? 'Your desk is empty. Deploy operatives and this hub becomes the board they report to.'
-                    : `${activeMissions.length} operative${activeMissions.length !== 1 ? 's' : ''} on the board. This hub is where every signal lands.`
+                    ? 'Nothing on the board yet. Add what you cannot afford to miss.'
+                    : `${activeMissions.length} operative${activeMissions.length !== 1 ? 's' : ''} on the board. Work and home report here.`
                   : `${activeMissions.length} active mission${activeMissions.length !== 1 ? 's' : ''} running. Your agents are watching silently in the background.`
                 : isGIA
                   ? 'One hub for every signal you care about — not a single watch.'
@@ -379,10 +379,9 @@ export default function CommandCenter({
               </div>
               {isGIA && (
                 <p className="text-sm text-zinc-100/90 leading-relaxed max-w-lg">
-                  This is a desk, not a single watch. Deploy operatives across markets, restocks,
-                  scores, competitor pages, weather, and news. Group them into portfolios. GIA
-                  checks the whole board every hour and briefs you here — and on this device —
-                  when a piece moves.
+                  You already run more than one operation. Put them on the same board — a
+                  competitor’s price, a restock, tomorrow’s weather, Friday’s score. GIA checks
+                  all of it every hour and pings you when something actually moves.
                 </p>
               )}
             </div>
@@ -661,14 +660,14 @@ export default function CommandCenter({
                 GIA means Go Intelligence Agency.
               </p>
               <p className="text-sm text-zinc-200 leading-relaxed mb-3">
-                It is your personal intelligence desk. You deploy operatives — not one watch —
-                across markets, restocks, scores, competitor pages, weather, and news. Group them
-                into portfolios. This hub is the board they report to.
+                One board for what you cannot afford to miss — a supplier page and a school-delay
+                storm, a client in the news and a restock, a market move and Friday’s game.
+                Same check. You are one person.
               </p>
               <ol className="text-sm text-zinc-200 space-y-1.5 list-decimal list-inside">
-                <li>Deploy an operative on something that moves your day.</li>
-                <li>We check the whole board every hour.</li>
-                <li>When a piece moves, we brief you here and ping this device.</li>
+                <li>Deploy operatives on the company and the household. Split them into portfolios if you want.</li>
+                <li>GIA checks the whole board every hour.</li>
+                <li>When something moves, we brief you here and ping this device.</li>
               </ol>
             </div>
           )}
