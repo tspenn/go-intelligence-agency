@@ -192,7 +192,7 @@ const GIA_CONFIG: ModeConfig = {
     description:
       'Deploy operatives on the markets, competitors, news signals, and data sources that move your business. Get briefed when something changes. No IT department. No enterprise contract. Just intelligence, on your terms.',
     heroCta: 'Start your free trial — 30 days',
-    heroCtaNote: 'No credit card. Opens your 30-day trial immediately. Email only when you deploy.',
+    heroCtaNote: 'No credit card. Starts your 30-day trial immediately. Email only when you deploy.',
     pricingHeading: 'Operational Clearance',
     pricingSubhead: 'Built for people making decisions with information — not waiting for a quarterly report.',
   },
