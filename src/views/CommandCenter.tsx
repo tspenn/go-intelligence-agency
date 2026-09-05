@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Shield, Eye, Lock, Radio, Target,
   ChevronRight, ChevronDown, Zap, Globe, FileText,
@@ -162,8 +162,14 @@ export default function CommandCenter({
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const user = auth.user;
+
+  function jumpToBoard(tab?: string) {
+    if (tab) setActiveTab(tab);
+    boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -263,7 +269,7 @@ export default function CommandCenter({
                   {isGIA ? 'GIA' : 'MY SECRET AGENT'}
                 </span>
                 <span className="text-[12px] font-mono text-zinc-400 tracking-widest uppercase">
-                  {isGIA ? 'OPS HUB' : 'GIA'}
+                  {isGIA ? 'your hub' : 'GIA'}
                 </span>
               </div>
               {isGIA && (
@@ -274,15 +280,26 @@ export default function CommandCenter({
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-6 text-sm text-zinc-400">
-            <nav className="flex gap-5">
-              {['Dashboard', 'Intel', 'Assets', 'Comms'].map((item) => (
-                <button key={item} className="hover:text-white transition-colors duration-150 tracking-wide">
-                  {item}
-                </button>
-              ))}
+          {isGIA ? (
+            <nav className="hidden md:flex items-center gap-5 text-sm text-zinc-300">
+              <button type="button" onClick={() => jumpToBoard('missions')} className="hover:text-white transition-colors">
+                The Board
+              </button>
+              <button type="button" onClick={onSwitchMode} className="hover:text-white transition-colors">
+                Watch something
+              </button>
             </nav>
-          </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-6 text-sm text-zinc-400">
+              <nav className="flex gap-5">
+                {['Dashboard', 'Intel', 'Assets', 'Comms'].map((item) => (
+                  <button key={item} className="hover:text-white transition-colors duration-150 tracking-wide">
+                    {item}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          )}
 
           <div className="flex items-center gap-4">
             <button
@@ -387,7 +404,13 @@ export default function CommandCenter({
           <div className={isGIA ? 'flex-1 max-w-xl rounded-sm bg-black/30 px-5 py-6 md:px-7 md:py-7' : 'flex-1'}>
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs text-emerald-400 font-mono tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {user?.email ? `AGENT: ${user.email.split('@')[0].toUpperCase()}` : user ? 'TRIAL OPERATIVE' : 'SECURE CHANNEL ACTIVE'}
+              {isGIA
+                ? 'No install. Paste what you already check.'
+                : user?.email
+                  ? `AGENT: ${user.email.split('@')[0].toUpperCase()}`
+                  : user
+                    ? 'TRIAL OPERATIVE'
+                    : 'SECURE CHANNEL ACTIVE'}
             </div>
             <h1 className="font-['Space_Grotesk',sans-serif] text-4xl md:text-5xl font-bold text-white leading-tight tracking-tight mb-4">
               {isGIA ? (
@@ -400,8 +423,8 @@ export default function CommandCenter({
               {user
                 ? isGIA
                   ? activeMissions.length === 0
-                    ? 'Nothing on the board yet. Add what you cannot afford to miss.'
-                    : `${activeMissions.length} operative${activeMissions.length !== 1 ? 's' : ''} on the board. Work and home report here.`
+                    ? 'Those tabs you keep refreshing? Drop them here. That is the whole jump in.'
+                    : `${activeMissions.length} on the board — work and home, same list.`}
                   : `${activeMissions.length} active mission${activeMissions.length !== 1 ? 's' : ''} running. Your agents are watching silently in the background.`
                 : isGIA
                   ? 'One hub for every signal you care about — not a single watch.'
@@ -429,9 +452,9 @@ export default function CommandCenter({
               </div>
               {isGIA && (
                 <p className="text-sm text-zinc-100/90 leading-relaxed max-w-lg">
-                  You already run more than one operation. Put them on the same board — a
-                  competitor’s price, a restock, tomorrow’s weather, Friday’s score. GIA checks
-                  all of it every hour and pings you when something actually moves.
+                  You already juggle pages. A competitor’s price. A restock. Tomorrow’s weather.
+                  Friday’s score. Drop the URL or the name here. GIA checks them every hour and
+                  pings you when something actually moves. No stack to learn.
                 </p>
               )}
             </div>
@@ -514,7 +537,7 @@ export default function CommandCenter({
       <main className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Missions panel */}
-        <div className={`lg:col-span-2 rounded-2xl overflow-hidden border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
+        <div ref={boardRef} className={`lg:col-span-2 rounded-2xl overflow-hidden border ${isGIA ? 'bg-[#1e262c] border-[#4a5f56]' : 'bg-zinc-900/40 border-zinc-800'}`}>
           <div className={`border-b px-6 py-4 ${isGIA ? 'border-[#4a5f56]' : 'border-zinc-800'}`}>
             {isGIA && (
               <div className="mb-3">
@@ -741,7 +764,7 @@ export default function CommandCenter({
                 </p>
                 {isGIA && user && (
                   <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
-                    Findings show up here after an operative fires.
+                    When something moves, it shows up here too. The lasting copy lives on The Board.
                   </p>
                 )}
               </div>
@@ -763,14 +786,14 @@ export default function CommandCenter({
                 GIA means Go Intelligence Agency.
               </p>
               <p className="text-sm text-zinc-200 leading-relaxed mb-3">
-                One board for what you cannot afford to miss — a supplier page and a school-delay
-                storm, a client in the news and a restock, a market move and Friday’s game.
-                Same check. You are one person.
+                The name is the wink. The job is simple: you already juggle URLs. Drop them here —
+                a supplier page and a school-delay storm, a client in the news and a restock,
+                a market move and Friday’s game. Same check. You are one person. No stack.
               </p>
               <ol className="text-sm text-zinc-200 space-y-1.5 list-decimal list-inside">
-                <li>Deploy operatives on the company and the household. Split them into portfolios if you want.</li>
-                <li>GIA checks the whole board every hour.</li>
-                <li>When something moves, we brief you here and ping this device.</li>
+                <li>Paste a page, a ticker, a name, a zip. That is an operative.</li>
+                <li>We check the whole board every hour.</li>
+                <li>When something moves, it stays on that row — and we ping this device.</li>
               </ol>
             </div>
           )}
@@ -781,7 +804,7 @@ export default function CommandCenter({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: isGIA ? 'Deploy Operative' : 'New Mission', icon: Target, action: onSwitchMode },
-                { label: isGIA ? 'Reports' : 'Intel Log', icon: FileText, action: () => setActiveTab(isGIA ? 'fired' : 'all') },
+                { label: isGIA ? 'Reports' : 'Intel Log', icon: FileText, action: () => (isGIA ? jumpToBoard('fired') : setActiveTab('all')) },
               ].map(({ label, icon: Icon, action }) => (
                 <button
                   key={label}

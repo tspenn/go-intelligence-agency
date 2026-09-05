@@ -189,14 +189,14 @@ const GIA_CONFIG: ModeConfig = {
   documentTitle: 'GIA — Your Operations Hub',
   brandAccent: 'emerald',
   landing: {
-    headline: 'Your personal intelligence operation.',
-    headlineHighlight: 'intelligence operation',
+    headline: 'Your personal intelligence agency.',
+    headlineHighlight: 'intelligence agency',
     description:
-      'Deploy operatives on the markets, competitors, news signals, and data sources that move your business. Get briefed when something changes. No IT department. No enterprise contract. Just intelligence, on your terms.',
+      'You already juggle pages — a competitor, a restock, the weather, Friday’s score. Drop them here. GIA checks them every hour and pings you when something moves. No stack. No IT. Just the cute name, then an easy jump in.',
     heroCta: 'Start your free trial — 30 days',
-    heroCtaNote: 'No credit card. Starts your 30-day trial immediately. Email only if you sign up to keep it.',
-    pricingHeading: 'Operational Clearance',
-    pricingSubhead: 'Built for people making decisions with information — not waiting for a quarterly report.',
+    heroCtaNote: 'No credit card. Starts immediately. Email only if you save it for another device.',
+    pricingHeading: 'How the desk grows',
+    pricingSubhead: 'Same hub at every level. What changes is how much of the board you can run.',
   },
   tiers: [
     {
